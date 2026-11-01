@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' data: blob:" />
+    <title>OpenCAD Studio</title>
+  </head>
+  <body>
+    <div id="app">
+      <header id="toolbar"></header>
+      <div id="main">
+        <aside id="browser"></aside>
+        <section id="viewport-wrap">
+          <div id="viewport"></div>
+          <div id="viewbar"></div>
+          <div id="loading">Loading geometry kernel…</div>
+        </section>
+        <aside id="panel"></aside>
+      </div>
+      <footer id="timeline"></footer>
+      <div id="statusbar"></div>
+    </div>
+    <div id="toasts"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
