@@ -28,7 +28,7 @@ export class Landing {
     const m = this.app.mascot;
     if (m && !this._greeted) {
       this._greeted = true;
-      m.say('Hi, I’m <b>Pip</b>! Start a <b>new design</b>, pick a template, or drop in an STL. Click me for tips.', 'wave', 9000);
+      m.say('Hi, I’m <b>Pip</b>! Start a <b>new design</b>, pick a template, or drop in an STL. Click me to ask a question, or press <b>H</b> to hide me.', 'wave', 9000);
     }
   }
 
@@ -62,7 +62,7 @@ export class Landing {
             ${icon('import')}
             <span>Drop a <b>.ocad</b>, <b>.stl</b> or <b>.obj</b> file here</span>
           </div>
-          ${this.app.mascot?.hidden ? '<button class="link-btn" data-act="show-pip">Bring back Pip, the helper</button>' : ''}
+          ${this.app.mascot?.hidden ? '<button class="link-btn" data-act="show-pip">Bring back Pip, the helper (H)</button>' : ''}
           <div class="ld-tips">
             <div class="ld-h">Getting started</div>
             <ol>

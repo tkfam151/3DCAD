@@ -285,70 +285,84 @@ body.dragging:not(.on-landing) #drop-hint { display: grid; }
 }
 
 /* ---------- Pip, the helper mascot ---------- */
-.pip { position: absolute; left: 14px; bottom: 10px; z-index: 20; display: flex; align-items: flex-end; gap: 4px; pointer-events: none; }
+.pip { position: absolute; left: 14px; bottom: 10px; z-index: 20; display: flex; align-items: flex-end; gap: 6px; pointer-events: none; }
 .pip[hidden] { display: none; }
 #landing .pip { position: fixed; left: 22px; bottom: 16px; }
-.pip-char { pointer-events: auto; width: 92px; height: 108px; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 12px; }
-.pip-char:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.pip-svg { width: 100%; height: 100%; overflow: visible; display: block; }
-.pip-shadow { fill: rgba(0,0,0,.35); transform-origin: 48px 106px; animation: pip-shadow 3.2s ease-in-out infinite; }
-.pip-body { transform-origin: 48px 102px; animation: pip-bob 3.2s ease-in-out infinite; }
-.pip-eye { transform-box: fill-box; transform-origin: center; animation: pip-blink 5.5s infinite; }
-.pip-eye:nth-child(2) { animation-delay: .04s; }
-.pip-pupil, .pip-glint { transition: transform .12s ease-out; }
-.pip-arm-right { transform-origin: 79px 58px; }
-.pip-arm-left { transform-origin: 17px 58px; }
-.pip-happy-eyes, .pip-sleep-eyes, .pip-grin, .pip-oh, .pip-zzz, .pip-brows { opacity: 0; }
-.pip-zzz text { fill: #a9c7ef; font: 700 11px ui-rounded, -apple-system, sans-serif; }
-.pip-char:hover .pip-body { animation: pip-hop .5s ease-out; }
+.pip-char { pointer-events: auto; width: 96px; height: 82px; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 10px; }
+.pip-char:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.pip-svg {
+  width: 100%; height: 100%; overflow: visible; display: block;
+  /* white sticker outline */
+  filter: drop-shadow(3px 0 0 #fff) drop-shadow(-3px 0 0 #fff) drop-shadow(0 3px 0 #fff) drop-shadow(0 -3px 0 #fff) drop-shadow(0 4px 6px rgba(0,0,0,.35));
+}
+.pip-torso, .pip-arm, .pip-leg { fill: #d97757; }
+.pip-eye { fill: #000; transform-box: fill-box; transform-origin: center; animation: pip-blink 5.5s steps(1) infinite; }
+.pip-eyes { transition: transform .12s steps(2); }
+.pip-shadow { fill: rgba(0,0,0,.28); transform-box: fill-box; transform-origin: center; }
+.pip-sweat { fill: #7cc4ff; opacity: 0; }
+.pip-zzz { fill: #a9c7ef; opacity: 0; }
+.pip-body { transform-box: fill-box; transform-origin: 50% 100%; animation: pip-bob 2.4s steps(2) infinite; }
+.pip-arm { transform-box: fill-box; }
+.pip-arm-left { transform-origin: 100% 0; }
+.pip-arm-right { transform-origin: 0 0; }
+.pip-leg { transform-box: fill-box; transform-origin: 50% 0; }
+.pip-char:hover .pip-leg.l1, .pip-char:hover .pip-leg.l3 { animation: pip-step .36s steps(1) infinite; }
+.pip-char:hover .pip-leg.l2, .pip-char:hover .pip-leg.l4 { animation: pip-step .36s steps(1) infinite .18s; }
 
-.pip.mood-happy .pip-eyes, .pip.mood-cheer .pip-eyes, .pip.mood-wave .pip-eyes { opacity: 0; }
-.pip.mood-happy .pip-happy-eyes, .pip.mood-cheer .pip-happy-eyes, .pip.mood-wave .pip-happy-eyes { opacity: 1; }
-.pip.mood-happy .pip-smile, .pip.mood-cheer .pip-smile, .pip.mood-wave .pip-smile { opacity: 0; }
-.pip.mood-happy .pip-grin, .pip.mood-cheer .pip-grin, .pip.mood-wave .pip-grin { opacity: 1; }
-.pip.mood-cheer .pip-body { animation: pip-jump .6s ease-out 2; }
-.pip.mood-cheer .pip-arm-left { animation: pip-arm-up-left .6s ease-out 2; }
-.pip.mood-wave .pip-arm-right { animation: pip-wave .5s ease-in-out 4; }
-.pip.mood-happy .pip-body { animation: pip-hop .5s ease-out; }
-.pip.mood-worried .pip-brows { opacity: 1; transform: rotate(0); }
-.pip.mood-worried .pip-brows path:first-child { transform: rotate(-14deg); transform-box: fill-box; transform-origin: right; }
-.pip.mood-worried .pip-brows path:last-child { transform: rotate(14deg); transform-box: fill-box; transform-origin: left; }
-.pip.mood-worried .pip-smile { opacity: 0; }
-.pip.mood-worried .pip-oh { opacity: 1; }
-.pip.mood-worried .pip-body { animation: pip-shake .45s ease-in-out 2; }
-.pip.mood-think .pip-pupil, .pip.mood-think .pip-glint { transform: translate(1.8px, -2.2px) !important; }
-.pip.mood-sleep .pip-eyes { opacity: 0; }
-.pip.mood-sleep .pip-sleep-eyes { opacity: 1; }
-.pip.mood-sleep .pip-zzz { opacity: 1; animation: pip-zzz 2.4s ease-in-out infinite; }
-.pip.mood-sleep .pip-body { animation: pip-breathe 4s ease-in-out infinite; }
+.pip.mood-happy .pip-eye, .pip.mood-cheer .pip-eye, .pip.mood-wave .pip-eye { animation: none; transform: scaleY(.5) translateY(-20px); }
+.pip.mood-cheer .pip-body { animation: pip-jump .5s steps(4) 2; }
+.pip.mood-cheer .pip-arm-left { animation: pip-arm-up-left .5s steps(2) 2; }
+.pip.mood-cheer .pip-arm-right { animation: pip-arm-up-right .5s steps(2) 2; }
+.pip.mood-wave .pip-arm-right { animation: pip-arm-up-right .45s steps(2) 4; }
+.pip.mood-happy .pip-body { animation: pip-hop .4s steps(3); }
+.pip.mood-worried .pip-eye { animation: none; transform: scale(.7); }
+.pip.mood-worried .pip-sweat { opacity: 1; animation: pip-drip 1.2s steps(3) infinite; }
+.pip.mood-worried .pip-body { animation: pip-shake .3s steps(2) 3; }
+.pip.mood-sleep .pip-eye { animation: none; transform: scaleY(.2) translateY(70px); }
+.pip.mood-sleep .pip-zzz { opacity: 1; animation: pip-zzz 2.4s steps(4) infinite; }
+.pip.mood-sleep .pip-body { animation: pip-breathe 3s steps(2) infinite; }
 
 .pip-bubble {
-  pointer-events: auto; position: relative; max-width: 250px; margin-bottom: 86px; margin-left: -6px; order: 2;
-  padding: 10px 12px; background: #f3f7fc; color: #13233a; border-radius: 14px 14px 14px 4px;
-  box-shadow: 0 8px 24px rgba(0,0,0,.35); font-size: 12.5px; line-height: 1.45; animation: pip-pop .22s ease-out;
+  pointer-events: auto; position: relative; width: 270px; margin-bottom: 60px; order: 2;
+  padding: 10px 12px; background: #f6f2ec; color: #2a1d17; border-radius: 4px;
+  box-shadow: 4px 4px 0 #2a1d17; border: 2px solid #2a1d17; font-size: 12.5px; line-height: 1.45; animation: pip-pop .18s steps(3);
 }
 .pip-bubble[hidden] { display: none; }
-.pip-bubble::before { content: ""; position: absolute; left: -7px; bottom: 6px; border: 8px solid transparent; border-right-color: #f3f7fc; border-left: 0; }
-.pip-bubble code { background: #dde7f3; color: #13233a; }
-.pip-actions { display: flex; gap: 10px; margin-top: 6px; }
-.pip-actions button { padding: 0; border: 0; background: none; color: #2f6fd0; font-size: 11.5px; font-weight: 600; cursor: pointer; }
-.pip-actions .pip-hide { color: #6b7a8c; font-weight: 500; margin-left: auto; }
+.pip-bubble::before { content: ""; position: absolute; left: -10px; bottom: 10px; width: 10px; height: 10px; background: #f6f2ec; border-left: 2px solid #2a1d17; border-bottom: 2px solid #2a1d17; transform: skewY(-35deg); }
+.pip-bubble code { background: #eadfd2; color: #2a1d17; }
+.pip-bubble ul { margin: 4px 0; padding-left: 16px; }
+.pip-bubble kbd { background: #eadfd2; color: #2a1d17; padding: 0 4px; font-size: 10.5px; }
+.pip-close { position: absolute; top: 2px; right: 6px; padding: 0 3px; border: 0; background: none; color: #8d7a6e; font-size: 16px; line-height: 1; cursor: pointer; }
+.pip-close:hover { color: #2a1d17; }
+.pip-text { padding-right: 12px; }
+.pip-q { align-self: flex-end; margin: 0 14px 6px 24px; padding: 4px 8px; background: #d97757; color: #fff; border-radius: 3px; font-size: 12px; width: fit-content; margin-left: auto; }
+.pip-acts, .pip-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.pip-acts:not(:empty), .pip-chips:not(:empty) { margin-top: 8px; }
+.pip-act { padding: 4px 9px; border: 2px solid #2a1d17; border-radius: 3px; background: #d97757; color: #fff; font-size: 11.5px; font-weight: 600; cursor: pointer; box-shadow: 2px 2px 0 #2a1d17; }
+.pip-act:active { transform: translate(2px, 2px); box-shadow: none; }
+.pip-chip { padding: 3px 8px; border: 1px solid #c9b8aa; border-radius: 12px; background: #fff; color: #5a4336; font-size: 11.5px; cursor: pointer; }
+.pip-chip:hover { border-color: #d97757; color: #2a1d17; }
+.pip-ask { display: none; gap: 5px; margin-top: 8px; }
+.pip-bubble.chat .pip-ask { display: flex; }
+.pip-ask input { flex: 1; background: #fff; color: #2a1d17; border: 2px solid #2a1d17; border-radius: 3px; padding: 5px 7px; font-size: 12px; }
+.pip-ask input:focus { box-shadow: none; border-color: #d97757; }
+.pip-ask button { border: 2px solid #2a1d17; border-radius: 3px; background: #d97757; color: #fff; padding: 0 9px; cursor: pointer; }
+.pip-foot { display: flex; gap: 10px; margin-top: 8px; }
+.pip-foot button { padding: 0; border: 0; background: none; color: #b3542f; font-size: 11.5px; font-weight: 600; cursor: pointer; }
+.pip-foot .pip-hide { color: #8d7a6e; font-weight: 500; margin-left: auto; }
 
-@keyframes pip-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
-@keyframes pip-shadow { 0%, 100% { transform: scaleX(1); } 50% { transform: scaleX(.88); } }
-@keyframes pip-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
-@keyframes pip-hop { 0% { transform: translateY(0); } 40% { transform: translateY(-9px); } 100% { transform: translateY(0); } }
-@keyframes pip-jump { 0% { transform: translateY(0) scale(1, 1); } 15% { transform: translateY(2px) scale(1.06, .92); } 50% { transform: translateY(-18px) scale(.97, 1.04); } 100% { transform: translateY(0) scale(1, 1); } }
-@keyframes pip-arm-up-left { 50% { transform: rotate(120deg); } }
-@keyframes pip-wave { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-22deg); } }
-@keyframes pip-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
-@keyframes pip-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.02, .97); } }
-@keyframes pip-zzz { 0% { transform: translateY(4px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateY(-8px); opacity: 0; } }
-@keyframes pip-pop { from { transform: scale(.85) translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes pip-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes pip-blink { 0%, 100% { transform: scaleY(1); } 94% { transform: scaleY(.1); } 97% { transform: scaleY(1); } }
+@keyframes pip-hop { 50% { transform: translateY(-14px); } }
+@keyframes pip-jump { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-30px); } }
+@keyframes pip-arm-up-left { 50% { transform: translateY(-50px); } }
+@keyframes pip-arm-up-right { 50% { transform: translateY(-50px); } }
+@keyframes pip-step { 50% { transform: translateY(-14px); } }
+@keyframes pip-shake { 0%, 100% { transform: translateX(-6px); } 50% { transform: translateX(6px); } }
+@keyframes pip-breathe { 50% { transform: scaleY(.97); } }
+@keyframes pip-drip { 0% { transform: translateY(0); } 100% { transform: translateY(30px); } }
+@keyframes pip-zzz { 0% { transform: translateY(10px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateY(-20px); opacity: 0; } }
+@keyframes pip-pop { from { transform: scale(.85); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
   .pip *, .pip-bubble { animation: none !important; transition: none !important; }
 }
-
-.pip-close { position: absolute; top: 3px; right: 6px; padding: 0 3px; border: 0; background: none; color: #8a97a8; font-size: 15px; line-height: 1; cursor: pointer; }
-.pip-close:hover { color: #13233a; }
-.pip-text { padding-right: 12px; }

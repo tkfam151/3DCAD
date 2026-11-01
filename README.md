@@ -17,7 +17,7 @@ sketch → extrude/revolve → modify, with every step recorded on an editable *
 | **Parametric** | Every feature stays editable on the timeline. Fields take expressions such as `width/2 + 3` or `1in`, using named **Parameters**. Suppress, reorder, rename or delete steps. |
 | **Inspect** | Measure distances, see size, volume, surface area and estimated PLA mass. |
 | **Files** | Save/open `.ocad` designs and open/import **STL** and **OBJ** models (double-click in Finder works), export **STL** and **OBJ** for 3D printing, save PNG images. Models that aren't watertight still open for reference. |
-| **Pip, your helper** | A little cube mascot in the bottom-left corner that cheers when a step works, warns you about errors, dozes off when you're idle and gives tips when you click it. Hide it from its speech bubble; bring it back from **Help → Show / Hide Pip** or the start screen. |
+| **Pip, your helper** | A pixel critter in the bottom-left corner. Click Pip to **ask questions** (“how do I make a hole?”, “what's wrong?”, “how big is it?”) and get answers with buttons that do it for you. Pip cheers when a step works, warns about errors, gives tips and naps when you're idle. Press **H** to hide or bring back Pip. It works offline, with no account needed. |
 | **View** | Orbit/pan/zoom (trackpad friendly), standard views, perspective/orthographic, wireframe, X-ray, edges, grid. |
 
 Geometry comes from the [Manifold](https://github.com/elalish/manifold) kernel, which guarantees watertight solids, so your exports are always printable. Rendering uses [three.js](https://threejs.org).
@@ -119,6 +119,7 @@ The start screen also has templates: a parametric bracket, an electronics enclos
 | B | Box | Y | Cylinder |
 | M | Move selected body | J | Combine selected bodies |
 | I | Measure | F | Fit view |
+| H | Hide / show Pip | ? | All shortcuts |
 | 0 / 1 / 2 / 3 | Home / Front / Top / Right | Delete | Remove selected bodies |
 | ⌘Z / ⇧⌘Z (Ctrl+Z / Ctrl+Shift+Z) | Undo / Redo | ⌘S (Ctrl+S) | Save |
 | Esc | Cancel / deselect | Enter | Accept dialog / finish sketch |
@@ -144,6 +145,11 @@ src/app.js       UI: toolbar, browser, timeline, property panels, files
 src/landing.js   start screen: new design, open, recents, templates
 tests/           kernel tests (node --test)
 ```
+
+## Credits
+
+Pip's look is borrowed from the pixel-art mascot of [Claude Code](https://claude.com/claude-code).
+OpenCAD Studio is an independent project and is not made by or affiliated with Anthropic.
 
 ## License
 

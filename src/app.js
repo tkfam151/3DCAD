@@ -87,13 +87,29 @@ export class App {
     this.bindKeys();
     if (this.api) this.api.onMenu((cmd, arg) => this.command(cmd, arg));
 
-    this.mascot = new Mascot();
+    this.mascot = new Mascot({
+      getContext: () => this.pipContext(),
+      onAction: (cmd) => this.command(cmd),
+    });
     this.mascot.mount(document.getElementById('viewport-wrap'));
     this.landing = new Landing(this);
     this.bindDragDrop();
     this.regen();
     this.vp.setView('iso');
     this.landing.show();
+  }
+
+  /** What Pip knows about the open design when you ask it questions. */
+  pipContext() {
+    const r = this.result || { bodies: [], errors: {} };
+    const bodies = r.bodies.filter((b) => b.bbox).map((b) => ({
+      name: b.name,
+      volume: b.volume,
+      size: [0, 1, 2].map((i) => b.bbox.max[i] - b.bbox.min[i]),
+    }));
+    const errors = Object.entries(r.errors).map(([id, message]) => ({ name: this.featureById(id)?.name || 'A step', message }));
+    const selected = r.bodies.filter((b) => this.selection.has(b.id)).map((b) => b.name);
+    return { bodies, errors, selected, onLanding: !!this.landing?.visible };
   }
 
   // ===================== document & history =====================
@@ -1624,7 +1640,7 @@ export class App {
   showShortcuts() {
     const rows = [
       ['S', 'Sketch'], ['E', 'Extrude'], ['B', 'Box'], ['Y', 'Cylinder'], ['M', 'Move selected body'], ['J', 'Combine selected'],
-      ['I', 'Measure'], ['F', 'Fit view'], ['0 / 1 / 2 / 3', 'Home / Front / Top / Right view'], ['Delete', 'Remove selected bodies'],
+      ['I', 'Measure'], ['H', 'Hide / show Pip, the helper'], ['F', 'Fit view'], ['0 / 1 / 2 / 3', 'Home / Front / Top / Right view'], ['Delete', 'Remove selected bodies'],
       ['⌘Z / ⇧⌘Z', 'Undo / Redo'], ['⌘S', 'Save'], ['Esc', 'Cancel / clear selection'],
       ['Sketch: L R T C P O', 'Line, Rect, Center rect, Circle, Polygon, Slot'], ['Sketch: X', 'Toggle construction'],
     ];
@@ -1644,6 +1660,7 @@ export class App {
       }
       if (this.landing.visible) {
         if (mod && !this.api && e.key.toLowerCase() === 'o') { e.preventDefault(); this.openDoc(); }
+        if (!mod && !typing && e.key.toLowerCase() === 'h') { this.mascot.toggle(); this.landing.render(); }
         return;
       }
       if (mod && !this.api) {
@@ -1663,7 +1680,7 @@ export class App {
       }
       if (k === 'Enter' && this.editing) return this.commitEdit();
       if ((k === 'Delete' || k === 'Backspace') && this.selection.size && !this.editing) return this.deleteSelectedBodies();
-      const map = { s: 'sketch', e: 'extrude', b: 'box', y: 'cylinder', m: 'move', j: 'combine', i: 'measure', f: 'fit', 0: 'view:iso', 1: 'view:front', 2: 'view:top', 3: 'view:right', '?': 'shortcuts' };
+      const map = { h: 'mascot', s: 'sketch', e: 'extrude', b: 'box', y: 'cylinder', m: 'move', j: 'combine', i: 'measure', f: 'fit', 0: 'view:iso', 1: 'view:front', 2: 'view:top', 3: 'view:right', '?': 'shortcuts' };
       const cmd = map[k.toLowerCase()];
       if (cmd) { e.preventDefault(); this.command(cmd); }
       if (this.editing?.feature.type === 'move' && (k === 't' || k === 'r')) {
