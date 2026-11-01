@@ -25,6 +25,11 @@ export class Landing {
     this.app.api?.setDirty(false, 'OpenCAD Studio');
     this.render();
     this.el.hidden = false;
+    const m = this.app.mascot;
+    if (m && !this._greeted) {
+      this._greeted = true;
+      m.say('Hi, I’m <b>Pip</b>! Start a <b>new design</b>, pick a template, or drop in an STL. Click me for tips.', 'wave', 9000);
+    }
   }
 
   hide() {
@@ -57,6 +62,7 @@ export class Landing {
             ${icon('import')}
             <span>Drop a <b>.ocad</b>, <b>.stl</b> or <b>.obj</b> file here</span>
           </div>
+          ${this.app.mascot?.hidden ? '<button class="link-btn" data-act="show-pip">Bring back Pip, the helper</button>' : ''}
           <div class="ld-tips">
             <div class="ld-h">Getting started</div>
             <ol>
@@ -100,6 +106,8 @@ export class Landing {
         </main>
       </div>`;
 
+    // Pip lives in the corner of whichever screen is showing
+    this.app.mascot?.mount(this.el);
     this.el.querySelectorAll('[data-act]').forEach((b) => {
       b.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -147,5 +155,6 @@ export class Landing {
     else if (act === 'recover') a.recoverAutosave();
     else if (act === 'discard-recovery') { a.discardAutosave(); this.render(); }
     else if (act === 'clear-recents') { clearRecents(); this.render(); }
+    else if (act === 'show-pip') { a.mascot.setHidden(false); this.render(); }
   }
 }

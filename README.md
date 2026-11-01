@@ -1,6 +1,6 @@
 # OpenCAD Studio
 
-A **free, open-source parametric 3D CAD app for Mac (Apple Silicon) and Windows**, inspired by the Fusion 360 workflow:
+A **free, open-source parametric 3D CAD app for Mac (M chips) and Windows**, inspired by the Fusion 360 workflow:
 sketch → extrude/revolve → modify, with every step recorded on an editable **timeline**.
 
 ![icon](build/icon.png)
@@ -17,6 +17,7 @@ sketch → extrude/revolve → modify, with every step recorded on an editable *
 | **Parametric** | Every feature stays editable on the timeline. Fields take expressions such as `width/2 + 3` or `1in`, using named **Parameters**. Suppress, reorder, rename or delete steps. |
 | **Inspect** | Measure distances, see size, volume, surface area and estimated PLA mass. |
 | **Files** | Save/open `.ocad` designs and open/import **STL** and **OBJ** models (double-click in Finder works), export **STL** and **OBJ** for 3D printing, save PNG images. Models that aren't watertight still open for reference. |
+| **Pip, your helper** | A little cube mascot in the bottom-left corner that cheers when a step works, warns you about errors, dozes off when you're idle and gives tips when you click it. Hide it from its speech bubble; bring it back from **Help → Show / Hide Pip** or the start screen. |
 | **View** | Orbit/pan/zoom (trackpad friendly), standard views, perspective/orthographic, wireframe, X-ray, edges, grid. |
 
 Geometry comes from the [Manifold](https://github.com/elalish/manifold) kernel, which guarantees watertight solids, so your exports are always printable. Rendering uses [three.js](https://threejs.org).
@@ -29,7 +30,7 @@ artifact for your computer (you need to be signed in to GitHub).
 ### Mac
 
 1. Download `OpenCAD-Studio-macOS` and unzip it.
-2. Open `OpenCAD Studio-…-arm64.dmg` (Apple Silicon: M1/M2/M3/M4…) or `OpenCAD Studio-…-x64.dmg` (Intel Macs).
+2. Open `OpenCAD Studio-…-arm64.dmg`. (Macs with Apple M chips only: M1/M2/M3/M4…; Intel Macs aren't supported.)
 3. Drag **OpenCAD Studio** into **Applications**.
 4. Open the app. The first time, macOS will probably block it, because it isn't notarized by Apple
    (that requires a paid Apple Developer account). Follow the steps below.

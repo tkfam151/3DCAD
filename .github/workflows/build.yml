@@ -40,13 +40,13 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Build .dmg and .zip (Apple Silicon + Intel)
+      - name: Build .dmg (Apple Silicon)
         run: npm run dist:mac -- --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       # Install from the .dmg like a user would, then launch the app and wait for
       # the editor to report that it started. Fails the build if it doesn't.
-      - name: Launch test (Apple Silicon)
+      - name: Launch test
         timeout-minutes: 5
         run: |
           set -e
@@ -60,21 +60,10 @@ jobs:
           codesign --verify --deep --strict --verbose=2 "$APP"
           OPENCAD_SMOKE_TEST=1 "$APP/Contents/MacOS/OpenCAD Studio" 2>&1 | tee /tmp/smoke.log
           grep -q SMOKE_OK /tmp/smoke.log
-      # The Intel copy runs on Apple Silicon Macs through Rosetta.
-      - name: Launch test (Intel, through Rosetta)
-        timeout-minutes: 5
-        run: |
-          set -e
-          APP="release/mac/OpenCAD Studio.app"
-          codesign --verify --deep --strict --verbose=2 "$APP"
-          OPENCAD_SMOKE_TEST=1 arch -x86_64 "$APP/Contents/MacOS/OpenCAD Studio" 2>&1 | tee /tmp/smoke-x64.log
-          grep -q SMOKE_OK /tmp/smoke-x64.log
       - uses: actions/upload-artifact@v4
         with:
           name: OpenCAD-Studio-macOS
-          path: |
-            release/*.dmg
-            release/*.zip
+          path: release/*.dmg
           if-no-files-found: error
 
   windows:

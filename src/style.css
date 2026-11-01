@@ -283,3 +283,72 @@ body.dragging:not(.on-landing) #drop-hint { display: grid; }
   .ld-body { grid-template-columns: 1fr; overflow-y: auto; }
   .ld-main { overflow: visible; }
 }
+
+/* ---------- Pip, the helper mascot ---------- */
+.pip { position: absolute; left: 14px; bottom: 10px; z-index: 20; display: flex; align-items: flex-end; gap: 4px; pointer-events: none; }
+.pip[hidden] { display: none; }
+#landing .pip { position: fixed; left: 22px; bottom: 16px; }
+.pip-char { pointer-events: auto; width: 92px; height: 108px; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 12px; }
+.pip-char:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pip-svg { width: 100%; height: 100%; overflow: visible; display: block; }
+.pip-shadow { fill: rgba(0,0,0,.35); transform-origin: 48px 106px; animation: pip-shadow 3.2s ease-in-out infinite; }
+.pip-body { transform-origin: 48px 102px; animation: pip-bob 3.2s ease-in-out infinite; }
+.pip-eye { transform-box: fill-box; transform-origin: center; animation: pip-blink 5.5s infinite; }
+.pip-eye:nth-child(2) { animation-delay: .04s; }
+.pip-pupil, .pip-glint { transition: transform .12s ease-out; }
+.pip-arm-right { transform-origin: 79px 58px; }
+.pip-arm-left { transform-origin: 17px 58px; }
+.pip-happy-eyes, .pip-sleep-eyes, .pip-grin, .pip-oh, .pip-zzz, .pip-brows { opacity: 0; }
+.pip-zzz text { fill: #a9c7ef; font: 700 11px ui-rounded, -apple-system, sans-serif; }
+.pip-char:hover .pip-body { animation: pip-hop .5s ease-out; }
+
+.pip.mood-happy .pip-eyes, .pip.mood-cheer .pip-eyes, .pip.mood-wave .pip-eyes { opacity: 0; }
+.pip.mood-happy .pip-happy-eyes, .pip.mood-cheer .pip-happy-eyes, .pip.mood-wave .pip-happy-eyes { opacity: 1; }
+.pip.mood-happy .pip-smile, .pip.mood-cheer .pip-smile, .pip.mood-wave .pip-smile { opacity: 0; }
+.pip.mood-happy .pip-grin, .pip.mood-cheer .pip-grin, .pip.mood-wave .pip-grin { opacity: 1; }
+.pip.mood-cheer .pip-body { animation: pip-jump .6s ease-out 2; }
+.pip.mood-cheer .pip-arm-left { animation: pip-arm-up-left .6s ease-out 2; }
+.pip.mood-wave .pip-arm-right { animation: pip-wave .5s ease-in-out 4; }
+.pip.mood-happy .pip-body { animation: pip-hop .5s ease-out; }
+.pip.mood-worried .pip-brows { opacity: 1; transform: rotate(0); }
+.pip.mood-worried .pip-brows path:first-child { transform: rotate(-14deg); transform-box: fill-box; transform-origin: right; }
+.pip.mood-worried .pip-brows path:last-child { transform: rotate(14deg); transform-box: fill-box; transform-origin: left; }
+.pip.mood-worried .pip-smile { opacity: 0; }
+.pip.mood-worried .pip-oh { opacity: 1; }
+.pip.mood-worried .pip-body { animation: pip-shake .45s ease-in-out 2; }
+.pip.mood-think .pip-pupil, .pip.mood-think .pip-glint { transform: translate(1.8px, -2.2px) !important; }
+.pip.mood-sleep .pip-eyes { opacity: 0; }
+.pip.mood-sleep .pip-sleep-eyes { opacity: 1; }
+.pip.mood-sleep .pip-zzz { opacity: 1; animation: pip-zzz 2.4s ease-in-out infinite; }
+.pip.mood-sleep .pip-body { animation: pip-breathe 4s ease-in-out infinite; }
+
+.pip-bubble {
+  pointer-events: auto; position: relative; max-width: 250px; margin-bottom: 86px; margin-left: -6px; order: 2;
+  padding: 10px 12px; background: #f3f7fc; color: #13233a; border-radius: 14px 14px 14px 4px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.35); font-size: 12.5px; line-height: 1.45; animation: pip-pop .22s ease-out;
+}
+.pip-bubble[hidden] { display: none; }
+.pip-bubble::before { content: ""; position: absolute; left: -7px; bottom: 6px; border: 8px solid transparent; border-right-color: #f3f7fc; border-left: 0; }
+.pip-bubble code { background: #dde7f3; color: #13233a; }
+.pip-actions { display: flex; gap: 10px; margin-top: 6px; }
+.pip-actions button { padding: 0; border: 0; background: none; color: #2f6fd0; font-size: 11.5px; font-weight: 600; cursor: pointer; }
+.pip-actions .pip-hide { color: #6b7a8c; font-weight: 500; margin-left: auto; }
+
+@keyframes pip-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes pip-shadow { 0%, 100% { transform: scaleX(1); } 50% { transform: scaleX(.88); } }
+@keyframes pip-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+@keyframes pip-hop { 0% { transform: translateY(0); } 40% { transform: translateY(-9px); } 100% { transform: translateY(0); } }
+@keyframes pip-jump { 0% { transform: translateY(0) scale(1, 1); } 15% { transform: translateY(2px) scale(1.06, .92); } 50% { transform: translateY(-18px) scale(.97, 1.04); } 100% { transform: translateY(0) scale(1, 1); } }
+@keyframes pip-arm-up-left { 50% { transform: rotate(120deg); } }
+@keyframes pip-wave { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-22deg); } }
+@keyframes pip-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+@keyframes pip-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.02, .97); } }
+@keyframes pip-zzz { 0% { transform: translateY(4px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateY(-8px); opacity: 0; } }
+@keyframes pip-pop { from { transform: scale(.85) translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .pip *, .pip-bubble { animation: none !important; transition: none !important; }
+}
+
+.pip-close { position: absolute; top: 3px; right: 6px; padding: 0 3px; border: 0; background: none; color: #8a97a8; font-size: 15px; line-height: 1; cursor: pointer; }
+.pip-close:hover { color: #13233a; }
+.pip-text { padding-right: 12px; }

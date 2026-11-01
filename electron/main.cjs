@@ -216,6 +216,7 @@ function buildMenu() {
       role: 'help',
       submenu: [
         { label: 'Keyboard Shortcuts', click: () => send('shortcuts') },
+        { label: 'Show / Hide Pip', click: () => send('mascot') },
         { label: 'About OpenCAD Studio', click: () => send('about') },
       ],
     },

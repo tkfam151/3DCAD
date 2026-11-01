@@ -13,6 +13,25 @@ import { icon } from './ui/icons.js';
 import { buildExamples } from './examples.js';
 import { Landing } from './landing.js';
 import { addRecent } from './recents.js';
+import { Mascot } from './mascot.js';
+
+const CHEERS = {
+  extrude: ['Nice extrude!', 'Look at that — it’s 3D now!', 'Solid work.'],
+  revolve: ['Round and round — beautiful!', 'Revolved like a pro.'],
+  box: ['A fine box.', 'Boxes are the start of everything.'],
+  cylinder: ['Nice cylinder!'],
+  sphere: ['So round!'],
+  cone: ['Pointy!'],
+  torus: ['Mmm, donut.'],
+  move: ['Moved it!'],
+  combine: ['Combined — teamwork!'],
+  mirror: ['Mirror, mirror… nice symmetry.'],
+  linearPattern: ['Copies, lined up neatly.'],
+  circularPattern: ['Round pattern done!'],
+  shell: ['Hollowed out — saves filament!'],
+  scale: ['Resized!'],
+};
+const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
 const MESH_EXT = ['stl', 'obj'];
 const extOf = (name) => (String(name).match(/\.([a-z0-9]+)$/i)?.[1] || '').toLowerCase();
@@ -68,6 +87,8 @@ export class App {
     this.bindKeys();
     if (this.api) this.api.onMenu((cmd, arg) => this.command(cmd, arg));
 
+    this.mascot = new Mascot();
+    this.mascot.mount(document.getElementById('viewport-wrap'));
     this.landing = new Landing(this);
     this.bindDragDrop();
     this.regen();
@@ -165,9 +186,16 @@ export class App {
     this.mode = 'normal';
     this.exitMeasure?.();
     this.landing?.hide();
+    this._lastErrIds = null;
     this.regen();
+    this._lastErrIds = new Set(Object.keys(this.result.errors));
     this.setDirty(false);
     this.vp.setView('iso');
+    this.mascot?.mount(document.getElementById('viewport-wrap'));
+    if (this.mascot) {
+      if (!this.doc.features.length) this.mascot.say('A fresh canvas! Press <b>S</b> to sketch, or <b>B</b> for a box.', 'wave', 8000);
+      else this.mascot.say(`Opened <b>${esc(name)}</b>. Click any step on the timeline to change it.`, 'happy', 6000);
+    }
   }
 
   // ===================== regeneration =====================
@@ -182,6 +210,13 @@ export class App {
       return;
     }
     this.regenMs = performance.now() - t0;
+    const errIds = Object.keys(this.result.errors);
+    const newErr = errIds.find((id) => !this._lastErrIds?.has(id));
+    this._lastErrIds = new Set(errIds);
+    if (newErr && !this.landing?.visible) {
+      const f = this.featureById(newErr);
+      this.mascot?.say(`Hmm, <b>${esc(f?.name || 'a step')}</b> has a problem: ${esc(this.result.errors[newErr])}`, 'worried', 8000);
+    }
     const ids = new Set(this.result.bodies.map((b) => b.id));
     for (const id of [...this.selection]) if (!ids.has(id)) this.selection.delete(id);
     this.vp.setBodies(this.result.bodies, this.doc.bodyProps);
@@ -290,7 +325,7 @@ export class App {
   command(cmd, arg) {
     if (cmd.startsWith('view:')) { this.vp.resetUp(); return this.vp.setView(cmd.slice(5)); }
     if (cmd.startsWith('toggle:')) return this.toggleDisplay(cmd.slice(7));
-    if (this.landing.visible && !['new', 'open', 'openFile', 'examples', 'about', 'shortcuts', 'home'].includes(cmd)) return;
+    if (this.landing.visible && !['new', 'open', 'openFile', 'examples', 'about', 'shortcuts', 'home', 'mascot'].includes(cmd)) return;
     if (FEATURES[cmd] && cmd !== 'sketch' && cmd !== 'importMesh') return this.createFeature(cmd);
     switch (cmd) {
       case 'new': return this.newDoc();
@@ -305,6 +340,7 @@ export class App {
       case 'importStl':
       case 'importMesh': return this.importMesh();
       case 'home': return this.goHome();
+      case 'mascot': return this.mascot.toggle();
       case 'sketch': return this.startSketchFlow();
       case 'measure': return this.toggleMeasure();
       case 'params': return this.openParameters();
@@ -673,6 +709,7 @@ export class App {
     this.vp.detachGizmo();
     this.renderPanel();
     this.commit(ed.before);
+    if (!this.result.errors[ed.feature.id] && CHEERS[ed.feature.type]) this.mascot.say(pick(CHEERS[ed.feature.type]), 'cheer', 3500);
   }
 
   cancelEdit() {
@@ -730,6 +767,7 @@ export class App {
     this.vp.resetUp();
     this.vp.showPlanePicker();
     this.renderStatus('Click an origin plane or a flat face of a body to sketch on. Esc to cancel.');
+    this.mascot.say('Pick a plane to draw on — or click a flat face of a body.', 'think', 6000);
     this.el.panel.classList.add('open');
     this.el.panel.innerHTML = `<div class="panel-head"><span>${icon('sketch')} New Sketch</span></div>
       <div class="hint">Pick a plane in the viewport, or a flat face of a body.</div>
@@ -767,6 +805,7 @@ export class App {
     this.sketcher.segments = this.doc.settings.segments;
     this.vp.setSketches(this.result.sketches, this.visibleSketchIds(), f.id);
     this.renderStatus();
+    if (isNew) this.mascot.say('Draw closed shapes. Type a number while drawing for an exact size. <b>Enter</b> finishes.', 'happy', 7000);
     this.sketcher.start(f, frame, {
       onFinish: (shapes) => {
         f.shapes = shapes;
@@ -774,7 +813,7 @@ export class App {
         this.vp.resetUp();
         this.commit(before);
         this.vp.setView('iso');
-        if (isNew && shapes.length) this.toast('Sketch done — press E to extrude it');
+        if (isNew && shapes.length) this.mascot.say('Sketch done! Press <b>E</b> to extrude it, or try <b>Revolve</b>.', 'happy', 7000);
         if (isNew && !shapes.length) {
           this.doc.features = this.doc.features.filter((x) => x !== f);
           this.regen();
@@ -803,6 +842,7 @@ export class App {
     this.measureObjs = [];
     this.el.toolbar.querySelector('[data-cmd=measure]')?.classList.add('active');
     this.renderStatus('Measure: click two points on bodies. Esc to exit.');
+    this.mascot.say('Click two points on your model and I’ll measure the distance.', 'think', 5000);
   }
 
   exitMeasure() {
@@ -1408,6 +1448,7 @@ export class App {
       this.meshSource = null;
       this.rememberRecent({ kind: 'ocad', name: this.fileName });
       this.toast(`Saved ${this.fileName}`);
+      this.mascot.say(`Saved <b>${esc(this.fileName)}</b>. 💾`, 'happy', 3000);
       localStorage.removeItem(AUTOSAVE_KEY);
       return true;
     } catch (e) {
@@ -1463,9 +1504,11 @@ export class App {
         if (!path) return;
         await this.api.writeFile(path, data);
         this.toast(`Exported ${path.split(/[\\/]/).pop()}`);
+        this.mascot.say('Exported! Ready for the slicer.', 'cheer', 4000);
       } else {
         download(new Blob([data], { type: mime }), name);
         this.toast(`Exported ${name}`);
+        this.mascot.say('Exported! Ready for the slicer.', 'cheer', 4000);
       }
     } catch (e) {
       this.toast(`Export failed: ${e.message}`, 'error');
