@@ -6,6 +6,11 @@ on:
     tags: ['v*']
   pull_request:
   workflow_dispatch:
+    inputs:
+      draft_release:
+        description: Create a private draft release with the Mac installers
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -46,10 +51,28 @@ jobs:
             release/*.dmg
             release/*.zip
           if-no-files-found: error
-      - name: Publish GitHub release
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Read app version
+        id: ver
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      # Drafts are only visible to people with write access to the repo.
+      # Publish one from the Releases page when you want it public.
+      - name: Create draft GitHub release
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.draft_release
         uses: softprops/action-gh-release@v2
         with:
+          draft: true
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', steps.ver.outputs.version) }}
+          target_commitish: ${{ github.sha }}
+          name: OpenCAD Studio ${{ steps.ver.outputs.version }}
+          body: |
+            Free parametric 3D CAD for macOS.
+
+            **Which file?** Apple menu → About This Mac:
+            - Chip: Apple M1/M2/M3/M4… → `OpenCAD Studio-${{ steps.ver.outputs.version }}-arm64.dmg`
+            - Processor: Intel → `OpenCAD Studio-${{ steps.ver.outputs.version }}-x64.dmg`
+
+            Open the .dmg and drag the app into Applications. The first time, right‑click the app → **Open** → **Open**.
+            If macOS says the app is damaged, run `xattr -cr "/Applications/OpenCAD Studio.app"` in Terminal.
           files: |
             release/*.dmg
             release/*.zip
