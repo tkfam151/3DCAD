@@ -1,6 +1,6 @@
 # OpenCAD Studio
 
-A **free, open-source parametric 3D CAD app for macOS**, inspired by the Fusion 360 workflow:
+A **free, open-source parametric 3D CAD app for Mac (Apple Silicon) and Windows**, inspired by the Fusion 360 workflow:
 sketch → extrude/revolve → modify, with every step recorded on an editable **timeline**.
 
 ![icon](build/icon.png)
@@ -21,19 +21,28 @@ sketch → extrude/revolve → modify, with every step recorded on an editable *
 
 Geometry comes from the [Manifold](https://github.com/elalish/manifold) kernel, which guarantees watertight solids, so your exports are always printable. Rendering uses [three.js](https://threejs.org).
 
-## Install on your Mac
+## Install
 
-1. Open the **Actions** tab of this repo, click the latest **Build macOS app** run, and download the
-   `OpenCAD-Studio-macOS` artifact. (Or grab it from **Releases** if one has been published.)
-2. Unzip it and open the `.dmg`:
-   - `…-arm64.dmg` → Apple Silicon Macs (M1/M2/M3/M4…)
-   - `…-x64.dmg` → Intel Macs
-3. Drag **OpenCAD Studio** into **Applications**.
-4. The first time you open it, macOS will warn that the app is from an unidentified developer (it is not
-   notarized, since that requires a paid Apple developer account). Either:
-   - **Right-click** the app → **Open** → **Open**, or
-   - go to **System Settings → Privacy & Security** and click **Open Anyway**, or
-   - run `xattr -cr "/Applications/OpenCAD Studio.app"` in Terminal.
+Open the **Actions** tab of this repo, click the latest **Build apps** run, and download the
+artifact for your computer (you need to be signed in to GitHub).
+
+### Mac (Apple Silicon: M1/M2/M3/M4…)
+
+1. Download `OpenCAD-Studio-macOS`, unzip it and open the `.dmg`.
+2. Drag **OpenCAD Studio** into **Applications**.
+3. The app isn't notarized (that needs a paid Apple developer account), so the first time macOS may block it.
+   Open **System Settings → Privacy & Security** and click **Open Anyway**, or run
+   `xattr -cr "/Applications/OpenCAD Studio.app"` in Terminal.
+
+If the app ever fails to start it shows an error, and details are saved to
+`~/Library/Logs/OpenCAD Studio/main.log`.
+
+### Windows 10/11 (64-bit)
+
+1. Download `OpenCAD-Studio-Windows`, unzip it and run `OpenCAD Studio Setup ….exe`.
+2. The installer isn't code-signed, so Windows may say "Windows protected your PC".
+   Click **More info → Run anyway**.
+3. Start **OpenCAD Studio** from the Start menu or the desktop shortcut.
 
 ## Run or build from source
 
@@ -44,11 +53,12 @@ npm install
 npm start            # build and launch the desktop app
 npm run dev          # or run it in your browser at http://localhost:5173
 npm test             # geometry kernel tests
-npm run dist:mac     # build .dmg/.zip into release/ (run on a Mac)
+npm run dist:mac     # build the Apple Silicon .dmg into release/ (run on a Mac)
+npm run dist:win     # build the Windows installer into release/ (run on Windows)
 ```
 
 To publish a downloadable release, push a version tag (e.g. `git tag v1.0.0 && git push origin v1.0.0`);
-the GitHub workflow attaches the `.dmg` and `.zip` files to a GitHub Release.
+the GitHub workflow attaches the Mac `.dmg` and Windows `.exe` to a draft GitHub Release.
 
 ## Quick start
 
@@ -71,7 +81,7 @@ The start screen also has templates: a parametric bracket, an electronics enclos
 | M | Move selected body | J | Combine selected bodies |
 | I | Measure | F | Fit view |
 | 0 / 1 / 2 / 3 | Home / Front / Top / Right | Delete | Remove selected bodies |
-| ⌘Z / ⇧⌘Z | Undo / Redo | ⌘S | Save |
+| ⌘Z / ⇧⌘Z (Ctrl+Z / Ctrl+Shift+Z) | Undo / Redo | ⌘S (Ctrl+S) | Save |
 | Esc | Cancel / deselect | Enter | Accept dialog / finish sketch |
 
 In a sketch: **L** line, **R** rectangle, **T** center rectangle, **C** circle, **P** polygon, **O** slot,
@@ -87,7 +97,7 @@ simulation.
 ## Project layout
 
 ```
-electron/        macOS app shell: window, native menus, file dialogs
+electron/        desktop app shell: window, native menus, file dialogs
 src/kernel/      parametric engine: features, expressions, regeneration (pure JS + Manifold WASM)
 src/viewport.js  three.js 3D view, picking, gizmo, camera
 src/sketcher.js  interactive 2D sketch editor

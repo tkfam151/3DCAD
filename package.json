@@ -2,7 +2,7 @@
   "name": "opencad-studio",
   "productName": "OpenCAD Studio",
   "version": "1.0.0",
-  "description": "A free, parametric 3D CAD app for macOS",
+  "description": "A free, parametric 3D CAD app for Mac and Windows",
   "main": "electron/main.cjs",
   "type": "module",
   "license": "MIT",
@@ -12,8 +12,9 @@
     "build": "vite build",
     "start": "vite build && electron .",
     "test": "node --test tests/*.test.js",
-    "dist:mac": "vite build && electron-builder --mac",
-    "dist": "vite build && electron-builder"
+    "dist:mac": "vite build && electron-builder --mac --arm64",
+    "dist": "vite build && electron-builder",
+    "dist:win": "vite build && electron-builder --win --x64"
   },
   "dependencies": {},
   "devDependencies": {
@@ -61,15 +62,7 @@
         {
           "target": "dmg",
           "arch": [
-            "arm64",
-            "x64"
-          ]
-        },
-        {
-          "target": "zip",
-          "arch": [
-            "arm64",
-            "x64"
+            "arm64"
           ]
         }
       ],
@@ -90,8 +83,24 @@
     },
     "win": {
       "target": [
-        "nsis"
-      ]
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "${productName} Setup ${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "OpenCAD Studio",
+      "uninstallDisplayName": "OpenCAD Studio"
     }
   }
 }
