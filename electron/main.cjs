@@ -2,10 +2,38 @@
 const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs/promises');
+const fsSync = require('fs');
 
 const isMac = process.platform === 'darwin';
 const OPENABLE = new Set(['.ocad', '.json', '.stl', '.obj']);
 const MAX_FILE_BYTES = 512 * 1024 * 1024;
+const SMOKE_TEST = !!process.env.OPENCAD_SMOKE_TEST;
+
+// ---------- diagnostics: never fail silently ----------
+
+let logFile = null;
+function log(...parts) {
+  const line = `[${new Date().toISOString()}] ${parts.map((p) => (p instanceof Error ? p.stack : typeof p === 'string' ? p : JSON.stringify(p))).join(' ')}\n`;
+  if (SMOKE_TEST) process.stdout.write(line);
+  try {
+    if (!logFile && app.isReady()) {
+      const dir = app.getPath('logs');
+      fsSync.mkdirSync(dir, { recursive: true });
+      logFile = path.join(dir, 'main.log');
+    }
+    if (logFile) fsSync.appendFileSync(logFile, line);
+  } catch { /* logging must never crash the app */ }
+}
+
+function fatal(title, err) {
+  log('FATAL', title, err);
+  if (SMOKE_TEST) { console.log('SMOKE_FAIL', title, err?.stack || err); app.exit(1); return; }
+  const where = logFile ? `\n\nDetails were saved to:\n${logFile}` : '';
+  try { dialog.showErrorBox(`OpenCAD Studio: ${title}`, `${err?.stack || err}${where}`); } catch { /* ignore */ }
+}
+
+process.on('uncaughtException', (e) => fatal('Unexpected error', e));
+process.on('unhandledRejection', (e) => fatal('Unexpected error', e));
 
 async function readForRenderer(filePath) {
   if (typeof filePath !== 'string' || !path.isAbsolute(filePath)) throw new Error('Invalid path');
@@ -30,7 +58,7 @@ function createWindow(fileToOpen) {
     backgroundColor: '#1b1f25',
     titleBarStyle: isMac ? 'hiddenInset' : 'default',
     trafficLightPosition: { x: 14, y: 18 },
-    show: false,
+    show: !SMOKE_TEST,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -41,7 +69,18 @@ function createWindow(fileToOpen) {
   win.state = { dirty: false, forceClose: false };
   windows.add(win);
   win.on('closed', () => windows.delete(win));
-  win.once('ready-to-show', () => win.show());
+
+  win.webContents.on('render-process-gone', (_e, details) => {
+    fatal('The window stopped working', new Error(`Renderer ${details.reason} (exit code ${details.exitCode})`));
+  });
+  win.webContents.on('did-fail-load', (_e, code, desc, url) => {
+    fatal('The app could not load', new Error(`${desc} (${code}) loading ${url}`));
+  });
+  win.webContents.on('preload-error', (_e, preloadPath, error) => fatal('Startup script failed', error));
+  win.webContents.on('console-message', (e) => {
+    const level = e.level ?? '';
+    if (SMOKE_TEST || level === 'error' || level === 3) log('renderer', level, e.message ?? '');
+  });
 
   win.on('close', async (e) => {
     if (!win.state.dirty || win.state.forceClose) return;
@@ -227,12 +266,29 @@ app.on('open-file', (e, filePath) => {
   else pendingOpen.push(filePath);
 });
 
+// The renderer reports once the editor (geometry kernel + 3D view) is up.
+ipcMain.on('app-ready', () => {
+  log('renderer ready');
+  if (SMOKE_TEST) { console.log('SMOKE_OK'); app.exit(0); }
+});
+ipcMain.on('app-error', (_e, message) => fatal('The app failed to start', new Error(String(message))));
+app.on('child-process-gone', (_e, details) => {
+  log('child process gone', details);
+  if (SMOKE_TEST && details.type === 'GPU' && details.reason !== 'clean-exit') log('GPU process crashed');
+});
+
 app.whenReady().then(() => {
-  app.setAboutPanelOptions?.({ applicationName: 'OpenCAD Studio', copyright: 'Free and open source (MIT)' });
-  buildMenu();
+  log(`starting ${app.getName()} ${app.getVersion()} on ${process.platform} ${process.arch} ${process.getSystemVersion?.() || ''} electron ${process.versions.electron}`);
+  try {
+    app.setAboutPanelOptions?.({ applicationName: 'OpenCAD Studio', copyright: 'Free and open source (MIT)' });
+    buildMenu();
+  } catch (e) {
+    log('menu setup failed', e); // the app still works without a custom menu
+  }
   if (pendingOpen.length) pendingOpen.splice(0).forEach((f) => createWindow(f));
   else createWindow(process.argv.slice(1).find((a) => OPENABLE.has(path.extname(a).toLowerCase()) && path.isAbsolute(a)));
   app.on('activate', () => { if (!windows.size) createWindow(); });
-});
+  if (SMOKE_TEST) setTimeout(() => fatal('Smoke test timed out', new Error('renderer never reported ready')), 90_000);
+}).catch((e) => fatal('Startup failed', e));
 
 app.on('window-all-closed', () => { if (!isMac) app.quit(); });

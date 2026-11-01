@@ -44,6 +44,31 @@ jobs:
         run: npm run dist:mac -- --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      # Install from the .dmg like a user would, then launch the app and wait for
+      # the editor to report that it started. Fails the build if it doesn't.
+      - name: Launch test (Apple Silicon app from the .dmg)
+        timeout-minutes: 5
+        run: |
+          set -e
+          DMG=$(ls release/*-arm64.dmg)
+          MNT=$(hdiutil attach "$DMG" -nobrowse -readonly | grep -o '/Volumes/.*' | head -1)
+          rm -rf "/tmp/apps" && mkdir -p /tmp/apps
+          cp -R "$MNT/OpenCAD Studio.app" /tmp/apps/
+          hdiutil detach "$MNT" -quiet
+          APP="/tmp/apps/OpenCAD Studio.app"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          plutil -p "$APP/Contents/Info.plist" | grep -E 'LSMinimumSystemVersion|CFBundleExecutable'
+          OPENCAD_SMOKE_TEST=1 "$APP/Contents/MacOS/OpenCAD Studio" 2>&1 | tee /tmp/smoke.log
+          grep -q SMOKE_OK /tmp/smoke.log
+      - name: Launch test (Intel app under Rosetta)
+        timeout-minutes: 5
+        continue-on-error: true
+        run: |
+          set -e
+          APP="release/mac/OpenCAD Studio.app"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          OPENCAD_SMOKE_TEST=1 arch -x86_64 "$APP/Contents/MacOS/OpenCAD Studio" 2>&1 | tee /tmp/smoke-x64.log
+          grep -q SMOKE_OK /tmp/smoke-x64.log
       - uses: actions/upload-artifact@v4
         with:
           name: OpenCAD-Studio-macOS

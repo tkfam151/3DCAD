@@ -9,10 +9,12 @@ async function boot() {
   wasm.setup();
   window.app = new App(wasm);
   document.getElementById('loading')?.remove();
+  window.api?.reportReady?.();
 }
 
 boot().catch((e) => {
   console.error(e);
   const l = document.getElementById('loading');
   if (l) l.textContent = `Failed to start: ${e.message}`;
+  window.api?.reportError?.(e?.stack || e?.message || String(e));
 });
