@@ -15,7 +15,6 @@ let logFile = null;
 function log(...parts) {
   const line = `[${new Date().toISOString()}] ${parts.map((p) => (p instanceof Error ? p.stack : typeof p === 'string' ? p : JSON.stringify(p))).join(' ')}\n`;
   if (SMOKE_TEST) process.stdout.write(line);
-  else { try { process.stderr.write(line); } catch { /* no terminal attached */ } }
   try {
     if (!logFile && app.isReady()) {
       const dir = app.getPath('logs');
@@ -33,7 +32,6 @@ function fatal(title, err) {
   try { dialog.showErrorBox(`OpenCAD Studio: ${title}`, `${err?.stack || err}${where}`); } catch { /* ignore */ }
 }
 
-log(`launching (electron ${process.versions.electron}, ${process.platform} ${process.arch})`);
 process.on('uncaughtException', (e) => fatal('Unexpected error', e));
 process.on('unhandledRejection', (e) => fatal('Unexpected error', e));
 
@@ -106,9 +104,6 @@ function createWindow(fileToOpen) {
   });
   win.webContents.on('will-navigate', (e) => e.preventDefault());
 
-  log('window created');
-  win.webContents.once('did-finish-load', () => log('page loaded'));
-  win.once('show', () => log('window shown'));
   if (process.env.VITE_DEV_SERVER_URL) win.loadURL(process.env.VITE_DEV_SERVER_URL);
   else win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
 
@@ -290,7 +285,6 @@ app.whenReady().then(() => {
   } catch (e) {
     log('menu setup failed', e); // the app still works without a custom menu
   }
-  log('menu ready');
   if (pendingOpen.length) pendingOpen.splice(0).forEach((f) => createWindow(f));
   else createWindow(process.argv.slice(1).find((a) => OPENABLE.has(path.extname(a).toLowerCase()) && path.isAbsolute(a)));
   app.on('activate', () => { if (!windows.size) createWindow(); });

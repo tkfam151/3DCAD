@@ -40,7 +40,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Build .dmg (Apple Silicon + Intel)
+      - name: Build .dmg and .zip (Apple Silicon + Intel)
         run: npm run dist:mac -- --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
@@ -72,7 +72,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: OpenCAD-Studio-macOS
-          path: release/*.dmg
+          path: |
+            release/*.dmg
+            release/*.zip
           if-no-files-found: error
 
   windows:
@@ -105,35 +107,6 @@ jobs:
           name: OpenCAD-Studio-Windows
           path: release/*.exe
           if-no-files-found: error
-
-  # Browser version on GitHub Pages (Settings → Pages → Source: GitHub Actions).
-  web:
-    needs: test
-    if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-        env:
-          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
-      - run: npm run build
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-      - id: deploy
-        uses: actions/deploy-pages@v4
 
   # Drafts are only visible to people with write access to the repo.
   # Publish one from the Releases page when you want it public.
