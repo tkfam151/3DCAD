@@ -609,6 +609,29 @@ export class Viewport {
   addOverlay(obj) { this.overlayGroup.add(obj); this.requestRender(); }
   removeOverlay(obj) { this.overlayGroup.remove(obj); this.requestRender(); }
 
+  /** Small JPEG of the current view, cropped to fill w×h (for recent-file cards). */
+  thumbnail(w = 320, h = 200) {
+    const gridWas = this.gridGroup.visible;
+    this.gridGroup.visible = false;
+    this.renderer.render(this.scene, this.camera);
+    this.gridGroup.visible = gridWas;
+    this.requestRender();
+    const src = this.dom;
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    const ctx = c.getContext('2d');
+    const g = ctx.createRadialGradient(w / 2, h * 0.3, 10, w / 2, h / 2, w * 0.8);
+    g.addColorStop(0, '#3a4553');
+    g.addColorStop(1, '#1c2128');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+    const scale = Math.max(w / src.width, h / src.height);
+    const sw = w / scale, sh = h / scale;
+    ctx.drawImage(src, (src.width - sw) / 2, (src.height - sh) / 2, sw, sh, 0, 0, w, h);
+    return c.toDataURL('image/jpeg', 0.82);
+  }
+
   screenshot() {
     this.renderer.render(this.scene, this.camera);
     return this.dom.toDataURL('image/png');

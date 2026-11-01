@@ -150,3 +150,28 @@ test('hollow results are cached and invalidated by upstream edits', () => {
   const c = regenerate(mk(12), wasm);
   assert.ok(c.bodies[0].volume > a.bodies[0].volume * 1.1, 'sketch change must invalidate cache');
 });
+
+test('non-watertight imported mesh is kept as a reference body', async () => {
+  const { encodeArray } = await import('../src/kernel/kernel.js');
+  // a single open triangle pair (not a closed solid)
+  const vertices = new Float32Array([0, 0, 0, 10, 0, 0, 10, 10, 0, 0, 10, 0]);
+  const tris = new Uint32Array([0, 1, 2, 0, 2, 3]);
+  const r = regenerate(doc([
+    { id: 'm', type: 'importMesh', params: { operation: 'new', x: '5', scale: '2' }, data: { vertices: encodeArray(vertices), tris: encodeArray(tris) } },
+  ]), wasm);
+  assert.deepEqual(r.errors, {});
+  assert.ok(r.warnings.m);
+  assert.equal(r.bodies.length, 1);
+  assert.ok(r.bodies[0].meshOnly);
+  close(r.bodies[0].bbox.max[0], 25);
+});
+
+test('watertight imported mesh becomes a solid', async () => {
+  const { encodeArray } = await import('../src/kernel/kernel.js');
+  const cube = wasm.Manifold.cube([10, 10, 10]).getMesh();
+  const r = regenerate(doc([
+    { id: 'm', type: 'importMesh', params: { operation: 'new' }, data: { vertices: encodeArray(new Float32Array(cube.vertProperties)), tris: encodeArray(new Uint32Array(cube.triVerts)) } },
+  ]), wasm);
+  assert.deepEqual(r.errors, {});
+  close(r.bodies[0].volume, 1000);
+});

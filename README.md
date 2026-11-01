@@ -9,13 +9,14 @@ sketch → extrude/revolve → modify, with every step recorded on an editable *
 
 | Area | What you get |
 | --- | --- |
+| **Start screen** | Create a new blank design, start from a template, open `.ocad` designs or `.stl` / `.obj` 3D models, reopen recent files (with thumbnails), drag & drop files, and recover unsaved work. Click the **⌂ OpenCAD** button (or **File → Home**, ⇧⌘H) to get back to it. |
 | **Sketching** | Sketch on the XY / XZ / YZ planes **or on any flat face of a body**. Line/polyline, rectangle, center rectangle, circle, polygon and slot tools, grid and point snapping, typed exact dimensions, construction geometry. Shapes inside other shapes become holes. |
 | **Solid features** | Extrude (one side, flipped or symmetric; rounded corners, taper, twist), Revolve, Box, Cylinder (both with edge fillets), Sphere, Cone, Torus, STL import. |
 | **Operations** | New body / Join / Cut / Intersect on every feature. Extruding a face sketch automatically joins, or cuts when you extrude inward. |
 | **Modify** | Move/Rotate with an on-screen gizmo, Scale, Combine (join/cut/intersect bodies), Mirror, Linear and Circular patterns, Hollow (shell). |
 | **Parametric** | Every feature stays editable on the timeline. Fields take expressions such as `width/2 + 3` or `1in`, using named **Parameters**. Suppress, reorder, rename or delete steps. |
 | **Inspect** | Measure distances, see size, volume, surface area and estimated PLA mass. |
-| **Files** | Save/open `.ocad` designs (double-click in Finder works), export **STL** and **OBJ** for 3D printing, save PNG images. Autosave recovery after crashes. |
+| **Files** | Save/open `.ocad` designs and open/import **STL** and **OBJ** models (double-click in Finder works), export **STL** and **OBJ** for 3D printing, save PNG images. Models that aren't watertight still open for reference. |
 | **View** | Orbit/pan/zoom (trackpad friendly), standard views, perspective/orthographic, wireframe, X-ray, edges, grid. |
 
 Geometry comes from the [Manifold](https://github.com/elalish/manifold) kernel, which guarantees watertight solids, so your exports are always printable. Rendering uses [three.js](https://threejs.org).
@@ -51,7 +52,7 @@ the GitHub workflow attaches the `.dmg` and `.zip` files to a GitHub Release.
 
 ## Quick start
 
-1. Press **S** (Sketch) and click the **XY** plane.
+1. On the start screen click **New design**, then press **S** (Sketch) and click the **XY** plane.
 2. Choose **Rectangle**, click two corners (or click once and type `40,20` then Enter).
 3. Add a **Circle** inside it to make a hole, then click **Finish Sketch**.
 4. Press **E** (Extrude), type a distance, press **Enter**.
@@ -59,7 +60,7 @@ the GitHub workflow attaches the `.dmg` and `.zip` files to a GitHub Release.
 6. Click any step in the timeline to change its dimensions later. The model rebuilds automatically.
 7. Use **Export → STL** to send it to your slicer.
 
-Also try **File → Examples…** for a parametric bracket, an electronics enclosure, a vase and a spoked wheel.
+The start screen also has templates: a parametric bracket, an electronics enclosure, a vase and a spoked wheel.
 
 ## Keyboard shortcuts
 
@@ -91,6 +92,7 @@ src/kernel/      parametric engine: features, expressions, regeneration (pure JS
 src/viewport.js  three.js 3D view, picking, gizmo, camera
 src/sketcher.js  interactive 2D sketch editor
 src/app.js       UI: toolbar, browser, timeline, property panels, files
+src/landing.js   start screen: new design, open, recents, templates
 tests/           kernel tests (node --test)
 ```
 

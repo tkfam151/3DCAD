@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js';
 import { OBJExporter } from 'three/examples/jsm/exporters/OBJExporter.js';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
-import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
+import { mergeVertices, mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { regenerate, sketchFrame, planeFromFace, moveMatrix, decomposeMove, encodeArray } from './kernel/kernel.js';
 import { FEATURES, defaultParams } from './kernel/features.js';
 import { evaluate } from './kernel/expr.js';
@@ -10,8 +11,15 @@ import { Viewport, defaultBodyColor } from './viewport.js';
 import { Sketcher } from './sketcher.js';
 import { icon } from './ui/icons.js';
 import { buildExamples } from './examples.js';
+import { Landing } from './landing.js';
+import { addRecent } from './recents.js';
+
+const MESH_EXT = ['stl', 'obj'];
+const extOf = (name) => (String(name).match(/\.([a-z0-9]+)$/i)?.[1] || '').toLowerCase();
+const baseName = (name) => String(name).split(/[\\/]/).pop().replace(/\.[a-z0-9]+$/i, '');
 
 const FILE_EXT = 'ocad';
+const OPEN_EXT = [FILE_EXT, 'json', ...MESH_EXT];
 const AUTOSAVE_KEY = 'opencad-autosave-v1';
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const fmt = (n, d = 2) => (Number.isFinite(n) ? (Math.round(n * 10 ** d) / 10 ** d).toLocaleString(undefined, { maximumFractionDigits: d }) : '–');
@@ -60,9 +68,11 @@ export class App {
     this.bindKeys();
     if (this.api) this.api.onMenu((cmd, arg) => this.command(cmd, arg));
 
+    this.landing = new Landing(this);
+    this.bindDragDrop();
     this.regen();
     this.vp.setView('iso');
-    this.maybeRecover();
+    this.landing.show();
   }
 
   // ===================== document & history =====================
@@ -121,41 +131,25 @@ export class App {
     }, 800);
   }
 
-  maybeRecover() {
-    let saved;
-    try { saved = JSON.parse(localStorage.getItem(AUTOSAVE_KEY) || 'null'); } catch { saved = null; }
-    if (!saved?.doc?.features?.length) return this.showWelcome();
-    this.modal({
-      title: 'Recover unsaved work?',
-      body: `<p>OpenCAD found an autosaved design <b>${esc(saved.name)}</b> with ${saved.doc.features.length} features from ${new Date(saved.t).toLocaleString()}.</p>`,
-      buttons: [
-        { label: 'Discard', action: () => { localStorage.removeItem(AUTOSAVE_KEY); this.showWelcome(); } },
-        { label: 'Recover', primary: true, action: () => {
-          this.loadDoc(saved.doc, saved.name, saved.path);
-          this.setDirty(true);
-        } },
-      ],
-    });
+  readAutosave() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(AUTOSAVE_KEY) || 'null');
+      return saved?.doc?.features?.length ? saved : null;
+    } catch {
+      return null;
+    }
   }
 
-  showWelcome() {
-    if (localStorage.getItem('opencad-welcomed')) return;
-    localStorage.setItem('opencad-welcomed', '1');
-    this.modal({
-      title: 'Welcome to OpenCAD Studio',
-      body: `<p>A free, parametric 3D modeler. Some quick tips:</p>
-        <ul class="tips">
-          <li><b>Sketch</b> (S) on a plane or any flat face, then <b>Extrude</b> (E) or <b>Revolve</b> it.</li>
-          <li>Every step lands on the <b>timeline</b> at the bottom — click any step to change its dimensions later.</li>
-          <li>Type expressions like <code>width/2 + 3</code> in any field. Define names in <b>Parameters</b>.</li>
-          <li>Orbit: drag · Pan: right‑drag or ⇧‑drag · Zoom: scroll / pinch.</li>
-          <li>Export <b>STL</b> or <b>OBJ</b> for 3D printing.</li>
-        </ul>`,
-      buttons: [
-        { label: 'Open an example', action: () => this.openExamples() },
-        { label: 'Start designing', primary: true },
-      ],
-    });
+  recoverAutosave() {
+    const saved = this.readAutosave();
+    if (!saved) return;
+    this.loadDoc(saved.doc, saved.name, saved.path);
+    this.setDirty(true);
+    this.toast('Recovered your unsaved design');
+  }
+
+  discardAutosave() {
+    localStorage.removeItem(AUTOSAVE_KEY);
   }
 
   loadDoc(doc, name = 'Untitled', path = null) {
@@ -169,6 +163,8 @@ export class App {
     this.fileName = name;
     this.filePath = path;
     this.mode = 'normal';
+    this.exitMeasure?.();
+    this.landing?.hide();
     this.regen();
     this.setDirty(false);
     this.vp.setView('iso');
@@ -215,7 +211,7 @@ export class App {
     const groups = [
       { title: 'File', items: [
         ['new', 'New', 'new'], ['open', 'Open', 'open'], ['save', 'Save', 'save'],
-        ['menu:export', 'Export', 'export'], ['importStl', 'Import STL', 'import'], ['examples', 'Examples', 'folder'],
+        ['menu:export', 'Export', 'export'], ['importMesh', 'Import', 'import'],
       ] },
       { title: 'Create', items: [
         ['sketch', 'Sketch', 'sketch', 'S'], ['extrude', 'Extrude', 'extrude', 'E'], ['revolve', 'Revolve', 'revolve'],
@@ -233,7 +229,8 @@ export class App {
       { title: 'Edit', items: [['undo', 'Undo', 'undo'], ['redo', 'Redo', 'redo']] },
     ];
     const tb = this.el.toolbar;
-    tb.innerHTML = '<div class="brand"><span class="logo">◆</span> OpenCAD</div>';
+    tb.innerHTML = `<button class="brand" title="Home — recent files and new designs">${icon('home')}<span class="logo">◆</span> OpenCAD</button>`;
+    tb.querySelector('.brand').onclick = () => this.goHome();
     for (const g of groups) {
       if (this.api && g.title === 'File') {
         // Electron has a native File menu; keep only export/import buttons
@@ -293,6 +290,7 @@ export class App {
   command(cmd, arg) {
     if (cmd.startsWith('view:')) { this.vp.resetUp(); return this.vp.setView(cmd.slice(5)); }
     if (cmd.startsWith('toggle:')) return this.toggleDisplay(cmd.slice(7));
+    if (this.landing.visible && !['new', 'open', 'openFile', 'examples', 'about', 'shortcuts', 'home'].includes(cmd)) return;
     if (FEATURES[cmd] && cmd !== 'sketch' && cmd !== 'importMesh') return this.createFeature(cmd);
     switch (cmd) {
       case 'new': return this.newDoc();
@@ -304,7 +302,9 @@ export class App {
       case 'menu:export': return this.exportMenu(arg);
       case 'exportStl': return this.exportMesh('stl');
       case 'exportObj': return this.exportMesh('obj');
-      case 'importStl': return this.importStl();
+      case 'importStl':
+      case 'importMesh': return this.importMesh();
+      case 'home': return this.goHome();
       case 'sketch': return this.startSketchFlow();
       case 'measure': return this.toggleMeasure();
       case 'params': return this.openParameters();
@@ -1269,32 +1269,123 @@ export class App {
   }
 
   async newDoc() {
-    if (!(await this.confirmDiscard())) return;
+    if (!this.landing.visible && !(await this.confirmDiscard())) return;
     this.loadDoc(emptyDoc());
-    localStorage.removeItem(AUTOSAVE_KEY);
+    this.discardAutosave();
+    this.toast('New design — press S to start a sketch');
   }
 
+  /** Show a file picker for designs and meshes, then open the chosen file as a design. */
   async openDoc(file) {
-    if (!(await this.confirmDiscard())) return;
+    if (!this.landing.visible && !(await this.confirmDiscard())) return;
     try {
-      let text, name, path = null;
-      if (file) { text = file.data; name = file.name; path = file.path; }
-      else if (this.api) {
-        const r = await this.api.openFile({ filters: [{ name: 'OpenCAD Design', extensions: [FILE_EXT, 'json'] }] });
-        if (!r) return;
-        text = r.text; name = r.name; path = r.path;
+      if (file) return await this.openFileData(file);
+      if (this.api) {
+        const r = await this.api.openFile({ filters: [
+          { name: 'All supported', extensions: OPEN_EXT },
+          { name: 'OpenCAD Design', extensions: [FILE_EXT] },
+          { name: '3D mesh (STL, OBJ)', extensions: MESH_EXT },
+        ] });
+        if (r) await this.openFileData(r);
       } else {
-        const f = await pickFile(`.${FILE_EXT},.json`);
-        if (!f) return;
-        text = await f.text(); name = f.name;
+        const f = await pickFile(OPEN_EXT.map((e) => `.${e}`).join(','));
+        if (f) await this.openFileData({ name: f.name, buffer: await f.arrayBuffer() });
       }
-      const doc = JSON.parse(text);
-      if (!Array.isArray(doc.features)) throw new Error('Not an OpenCAD design file');
-      this.loadDoc(doc, name.replace(new RegExp(`\\.(${FILE_EXT}|json)$`), ''), path);
-      this.toast(`Opened ${name}`);
     } catch (e) {
       this.toast(`Could not open file: ${e.message}`, 'error');
     }
+  }
+
+  /** Open {name, path?, buffer?|text?|data?}: .ocad loads a design, .stl/.obj becomes a new design. */
+  async openFileData(file) {
+    const ext = extOf(file.name);
+    const text = () => file.text ?? (typeof file.data === 'string' ? file.data : new TextDecoder().decode(toBytes(file.buffer ?? file.data)));
+    if (ext === FILE_EXT || ext === 'json') {
+      const doc = JSON.parse(text());
+      if (!Array.isArray(doc.features)) throw new Error('Not an OpenCAD design file');
+      this.loadDoc(doc, baseName(file.name), file.path || null);
+      this.rememberRecent({ kind: 'ocad' });
+      this.toast(`Opened ${file.name}`);
+    } else if (MESH_EXT.includes(ext)) {
+      const f = this.meshFeature(file.name, ext === 'obj' ? text() : toBytes(file.buffer ?? file.data).buffer);
+      const doc = emptyDoc();
+      doc.features.push(f);
+      doc.bodyProps[f.id] = { name: f.name };
+      this.loadDoc(doc, baseName(file.name), null);
+      this.meshSource = { path: file.path || null, name: file.name, kind: ext };
+      this.rememberRecent({ kind: ext, path: file.path || null, name: baseName(file.name), doc: file.path ? undefined : this.doc });
+      this.reportMeshImport(f, file.name);
+    } else {
+      throw new Error(`Unsupported file type ".${ext}". Open .ocad, .stl or .obj files.`);
+    }
+  }
+
+  async openRecent(entry) {
+    if (!this.landing.visible && !(await this.confirmDiscard())) return;
+    try {
+      if (entry.path && this.api) {
+        const r = await this.api.readFile(entry.path);
+        await this.openFileData(r);
+      } else if (entry.doc) {
+        this.loadDoc(entry.doc, entry.name, null);
+        if (entry.kind && entry.kind !== 'ocad') this.meshSource = { name: entry.name, kind: entry.kind };
+        this.rememberRecent({ kind: entry.kind || 'ocad', name: entry.name });
+      } else {
+        this.toast(`“${entry.name}” isn't stored in the browser — use Open file… to pick it again`, 'error');
+      }
+    } catch (e) {
+      this.toast(`Could not open “${entry.name}”: ${e.message}`, 'error');
+    }
+  }
+
+  async openTemplate(x) {
+    if (!this.landing.visible && !(await this.confirmDiscard())) return;
+    this.loadDoc(JSON.parse(JSON.stringify(x.doc)), x.name);
+  }
+
+  /** Leave the editor for the start screen. */
+  async goHome() {
+    if (this.landing.visible) return;
+    if (this.mode === 'sketch') this.sketcher.cancel();
+    if (this.mode === 'pickPlane') this.cancelPlanePick();
+    this.exitMeasure();
+    if (this.editing) this.commitEdit();
+    this.updateRecentThumb();
+    if (!(await this.confirmDiscard())) return;
+    if (this.dirty) this.discardAutosave();
+    this.doc = emptyDoc();
+    this.fileName = 'Untitled';
+    this.filePath = null;
+    this.meshSource = null;
+    this.undoStack = [];
+    this.redoStack = [];
+    this.selection.clear();
+    this.dirty = false;
+    this.regen();
+    this.landing.show();
+  }
+
+  /** Record the current file in the recent list (with a thumbnail once rendered). */
+  rememberRecent(extra = {}) {
+    const base = this.filePath
+      ? { name: this.fileName, path: this.filePath, kind: 'ocad' }
+      : { name: this.fileName, path: null, kind: 'ocad', doc: this.api ? undefined : this.doc };
+    const entry = { ...base, ...extra };
+    if (!entry.path && this.api) return; // unsaved desktop design: nothing to reopen
+    this.currentRecent = addRecent(entry);
+    clearTimeout(this._thumbT);
+    this._thumbT = setTimeout(() => this.updateRecentThumb(), 900);
+  }
+
+  updateRecentThumb() {
+    const cur = this.currentRecent;
+    if (!cur || this.landing.visible) return;
+    try {
+      const patch = { ...cur, thumb: this.vp.thumbnail(320, 200) };
+      if (!cur.path && cur.kind === 'ocad' && !this.api) patch.doc = this.doc;
+      if (!cur.path && cur.kind !== 'ocad' && this.meshSource && !this.api) patch.doc = this.doc;
+      this.currentRecent = addRecent(patch);
+    } catch { /* thumbnail is optional */ }
   }
 
   async saveDoc(saveAs) {
@@ -1314,6 +1405,8 @@ export class App {
       }
       this.setDirty(false);
       this.renderBrowser();
+      this.meshSource = null;
+      this.rememberRecent({ kind: 'ocad', name: this.fileName });
       this.toast(`Saved ${this.fileName}`);
       localStorage.removeItem(AUTOSAVE_KEY);
       return true;
@@ -1387,34 +1480,87 @@ export class App {
     await this.saveBinary(bytes, `${this.fileName}.png`, 'image/png', [{ name: 'PNG', extensions: ['png'] }]);
   }
 
-  async importStl() {
-    try {
-      let buf, name;
-      if (this.api) {
-        const r = await this.api.openFile({ filters: [{ name: 'STL mesh', extensions: ['stl'] }], binary: true });
-        if (!r) return;
-        buf = r.buffer; name = r.name;
-      } else {
-        const f = await pickFile('.stl');
-        if (!f) return;
-        buf = await f.arrayBuffer(); name = f.name;
-      }
-      let geom = new STLLoader().parse(buf);
+  /** Parse an STL (ArrayBuffer) or OBJ (string) into an importMesh feature. */
+  meshFeature(name, data) {
+    let geom;
+    if (typeof data === 'string') {
+      const parts = [];
+      new OBJLoader().parse(data).traverse((o) => {
+        if (!o.isMesh) return;
+        let g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+        for (const k of Object.keys(g.attributes)) if (k !== 'position') g.deleteAttribute(k);
+        g.applyMatrix4(o.matrixWorld);
+        parts.push(g);
+      });
+      if (!parts.length) throw new Error('No meshes found in OBJ file');
+      geom = parts.length > 1 ? mergeGeometries(parts) : parts[0];
+    } else {
+      geom = new STLLoader().parse(data);
       geom.deleteAttribute('normal');
-      geom = mergeVertices(geom, 1e-4);
-      const pos = geom.attributes.position.array;
-      const vertices = new Float32Array(pos);
-      const tris = new Uint32Array(geom.index.array);
-      const f = { id: uid(), type: 'importMesh', name: name.replace(/\.stl$/i, ''), params: defaultParams('importMesh'), data: { vertices: encodeArray(vertices), tris: encodeArray(tris) } };
+    }
+    geom = mergeVertices(geom, 1e-4);
+    const nTris = geom.index.count / 3;
+    if (!nTris) throw new Error('The file contains no triangles');
+    if (nTris > 2_000_000) throw new Error('Mesh is too large (over 2 million triangles)');
+    const vertices = new Float32Array(geom.attributes.position.array);
+    const tris = new Uint32Array(geom.index.array);
+    return {
+      id: uid(), type: 'importMesh', name: baseName(name), params: defaultParams('importMesh'),
+      data: { vertices: encodeArray(vertices), tris: encodeArray(tris) },
+    };
+  }
+
+  reportMeshImport(f, name) {
+    if (this.result.errors[f.id]) this.toast(this.result.errors[f.id], 'error');
+    else if (this.result.warnings?.[f.id]) this.toast(`Opened ${name}. ${this.result.warnings[f.id]}`, 'error');
+    else this.toast(`Opened ${name}`);
+    this.vp.setView('iso');
+  }
+
+  /** Import an STL/OBJ into the current design as a new body. */
+  async importMesh(file) {
+    try {
+      if (!file) {
+        if (this.api) {
+          file = await this.api.openFile({ filters: [{ name: '3D mesh (STL, OBJ)', extensions: MESH_EXT }] });
+        } else {
+          const f = await pickFile(MESH_EXT.map((e) => `.${e}`).join(','));
+          if (f) file = { name: f.name, buffer: await f.arrayBuffer() };
+        }
+        if (!file) return;
+      }
+      const ext = extOf(file.name);
+      const bytes = toBytes(file.buffer ?? file.data);
+      const f = this.meshFeature(file.name, ext === 'obj' ? new TextDecoder().decode(bytes) : bytes.buffer);
       this.change((d) => {
         d.features.push(f);
         d.bodyProps[f.id] = { name: f.name };
       });
-      if (this.result.errors[f.id]) this.toast(this.result.errors[f.id], 'error');
-      else { this.toast(`Imported ${name}`); this.vp.fit(); }
+      this.reportMeshImport(f, file.name);
     } catch (e) {
       this.toast(`Import failed: ${e.message}`, 'error');
     }
+  }
+
+  bindDragDrop() {
+    let depth = 0;
+    const has = (e) => [...(e.dataTransfer?.types || [])].includes('Files');
+    window.addEventListener('dragenter', (e) => { if (has(e)) { depth++; document.body.classList.add('dragging'); } });
+    window.addEventListener('dragleave', () => { if (--depth <= 0) { depth = 0; document.body.classList.remove('dragging'); } });
+    window.addEventListener('dragover', (e) => { if (has(e)) e.preventDefault(); });
+    window.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      depth = 0;
+      document.body.classList.remove('dragging');
+      const f = e.dataTransfer?.files?.[0];
+      if (!f) return;
+      const ext = extOf(f.name);
+      if (!OPEN_EXT.includes(ext)) return this.toast(`Can't open .${ext} files — use .ocad, .stl or .obj`, 'error');
+      const file = { name: f.name, path: this.api?.pathForFile?.(f) || null, buffer: await f.arrayBuffer() };
+      // meshes dropped onto an open design are imported into it; everything else opens as its own design
+      if (!this.landing.visible && MESH_EXT.includes(ext) && this.doc.features.length) return this.importMesh(file);
+      this.openDoc(file);
+    });
   }
 
   openExamples() {
@@ -1425,11 +1571,9 @@ export class App {
       buttons: [{ label: 'Close' }],
     });
     m.querySelectorAll('.ex-card').forEach((b) => {
-      b.onclick = async () => {
+      b.onclick = () => {
         m.closest('.modal-backdrop').remove();
-        if (!(await this.confirmDiscard())) return;
-        const x = ex[Number(b.dataset.i)];
-        this.loadDoc(JSON.parse(JSON.stringify(x.doc)), x.name);
+        this.openTemplate(ex[Number(b.dataset.i)]);
       };
     });
   }
@@ -1453,6 +1597,10 @@ export class App {
       const mod = e.metaKey || e.ctrlKey;
       if (document.querySelector('.modal-backdrop')) {
         if (e.key === 'Escape') document.querySelector('.modal-backdrop [data-cancel]')?.click();
+        return;
+      }
+      if (this.landing.visible) {
+        if (mod && !this.api && e.key.toLowerCase() === 'o') { e.preventDefault(); this.openDoc(); }
         return;
       }
       if (mod && !this.api) {
@@ -1541,6 +1689,14 @@ function download(blob, name) {
   document.body.appendChild(a);
   a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+
+function toBytes(data) {
+  if (!data) return new Uint8Array(0);
+  if (data instanceof Uint8Array) return data.byteOffset === 0 && data.byteLength === data.buffer.byteLength ? data : data.slice();
+  if (data instanceof ArrayBuffer) return new Uint8Array(data);
+  if (ArrayBuffer.isView(data)) return new Uint8Array(data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength));
+  return new TextEncoder().encode(String(data));
 }
 
 function pickFile(accept) {

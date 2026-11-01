@@ -4,6 +4,19 @@ const path = require('path');
 const fs = require('fs/promises');
 
 const isMac = process.platform === 'darwin';
+const OPENABLE = new Set(['.ocad', '.json', '.stl', '.obj']);
+const MAX_FILE_BYTES = 512 * 1024 * 1024;
+
+async function readForRenderer(filePath) {
+  if (typeof filePath !== 'string' || !path.isAbsolute(filePath)) throw new Error('Invalid path');
+  if (!OPENABLE.has(path.extname(filePath).toLowerCase())) throw new Error('Unsupported file type');
+  const st = await fs.stat(filePath);
+  if (!st.isFile()) throw new Error('Not a file');
+  if (st.size > MAX_FILE_BYTES) throw new Error('File is too large');
+  const buf = await fs.readFile(filePath);
+  app.addRecentDocument(filePath);
+  return { path: filePath, name: path.basename(filePath), buffer: new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength) };
+}
 const windows = new Set();
 const pendingOpen = [];
 
@@ -61,9 +74,7 @@ function createWindow(fileToOpen) {
 
 async function openPath(win, filePath) {
   try {
-    const text = await fs.readFile(filePath, 'utf8');
-    win.webContents.send('menu', 'openFile', { path: filePath, name: path.basename(filePath), data: text });
-    app.addRecentDocument(filePath);
+    win.webContents.send('menu', 'openFile', await readForRenderer(filePath));
   } catch (e) {
     dialog.showErrorBox('Could not open file', e.message);
   }
@@ -91,6 +102,8 @@ function buildMenu() {
     {
       label: 'File',
       submenu: [
+        { label: 'Home', accelerator: 'CmdOrCtrl+Shift+H', click: () => send('home') },
+        { type: 'separator' },
         { label: 'New Design', accelerator: 'CmdOrCtrl+N', click: () => send('new') },
         { label: 'New Window', accelerator: 'CmdOrCtrl+Shift+N', click: () => createWindow() },
         { label: 'Open…', accelerator: 'CmdOrCtrl+O', click: () => send('open') },
@@ -100,7 +113,7 @@ function buildMenu() {
         { label: 'Save', accelerator: 'CmdOrCtrl+S', click: () => send('save') },
         { label: 'Save As…', accelerator: 'CmdOrCtrl+Shift+S', click: () => send('saveAs') },
         { type: 'separator' },
-        { label: 'Import STL…', accelerator: 'CmdOrCtrl+I', click: () => send('importStl') },
+        { label: 'Import STL / OBJ into Design…', accelerator: 'CmdOrCtrl+I', click: () => send('importMesh') },
         { label: 'Export STL…', accelerator: 'CmdOrCtrl+E', click: () => send('exportStl') },
         { label: 'Export OBJ…', click: () => send('exportObj') },
         { label: 'Save Image…', click: () => send('screenshot') },
@@ -171,19 +184,15 @@ function buildMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
-ipcMain.handle('open-file', async (e, { filters, binary }) => {
+ipcMain.handle('open-file', async (e, { filters }) => {
   const win = BrowserWindow.fromWebContents(e.sender);
   const r = await dialog.showOpenDialog(win, { properties: ['openFile'], filters });
   if (r.canceled || !r.filePaths[0]) return null;
-  const p = r.filePaths[0];
-  const name = path.basename(p);
-  if (binary) {
-    const buf = await fs.readFile(p);
-    return { path: p, name, buffer: buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) };
-  }
-  app.addRecentDocument(p);
-  return { path: p, name, text: await fs.readFile(p, 'utf8') };
+  return readForRenderer(r.filePaths[0]);
 });
+
+// Reopen a file from the recent list (only design/mesh file types are readable)
+ipcMain.handle('read-file', (_e, filePath) => readForRenderer(filePath));
 
 ipcMain.handle('save-dialog', async (e, { defaultPath, filters }) => {
   const win = BrowserWindow.fromWebContents(e.sender);
@@ -222,7 +231,7 @@ app.whenReady().then(() => {
   app.setAboutPanelOptions?.({ applicationName: 'OpenCAD Studio', copyright: 'Free and open source (MIT)' });
   buildMenu();
   if (pendingOpen.length) pendingOpen.splice(0).forEach((f) => createWindow(f));
-  else createWindow(process.argv.find((a) => a.endsWith('.ocad')));
+  else createWindow(process.argv.slice(1).find((a) => OPENABLE.has(path.extname(a).toLowerCase()) && path.isAbsolute(a)));
   app.on('activate', () => { if (!windows.size) createWindow(); });
 });
 

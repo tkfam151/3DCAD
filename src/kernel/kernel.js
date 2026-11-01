@@ -172,6 +172,8 @@ export function regenerate(doc, wasm) {
 
   const { scope, errors: paramErrors } = evaluateParameters(doc.parameters);
   const errors = {};
+  const warnings = {};
+  const meshOnly = []; // non-watertight imports, shown for reference only
   const bodies = new Map(); // id -> { id, name, solid, creator }
   const sketches = new Map();
   const consumedSketches = new Set();
@@ -481,13 +483,36 @@ export function regenerate(doc, wasm) {
       const triVerts = decodeArray(f.data.tris, Uint32Array);
       const mesh = new Mesh({ numProp: 3, vertProperties, triVerts });
       mesh.merge();
+      const sc = num(f, 'scale', 1);
       let solid;
       try {
         solid = T(new Manifold(mesh));
       } catch {
-        throw new Error('Mesh is not watertight (manifold), cannot be used as a solid');
+        solid = null;
       }
-      const sc = num(f, 'scale', 1);
+      if (!solid) {
+        // keep the raw triangles so the model is still visible
+        const m = moveMatrix(
+          [num(f, 'x', 0), num(f, 'y', 0), num(f, 'z', 0)],
+          [num(f, 'rx', 0), num(f, 'ry', 0), num(f, 'rz', 0)],
+          [0, 0, 0],
+        ).multiply(new Matrix4().makeScale(sc, sc, sc));
+        const positions = new Float32Array(vertProperties.length);
+        const v = new Vector3();
+        const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
+        for (let i = 0; i < vertProperties.length; i += 3) {
+          v.set(vertProperties[i], vertProperties[i + 1], vertProperties[i + 2]).applyMatrix4(m);
+          positions[i] = v.x; positions[i + 1] = v.y; positions[i + 2] = v.z;
+          for (let k = 0; k < 3; k++) { min[k] = Math.min(min[k], positions[i + k]); max[k] = Math.max(max[k], positions[i + k]); }
+        }
+        bodyCounter++;
+        meshOnly.push({
+          id: f.id, name: nameOf(f.id) || `Body${bodyCounter}`, creator: f.id, meshOnly: true,
+          positions, indices: triVerts, volume: 0, area: 0, bbox: { min, max },
+        });
+        warnings[f.id] = 'Mesh is not watertight: shown for reference only (cannot be joined, cut or hollowed).';
+        return;
+      }
       if (sc !== 1) solid = T(solid.scale(sc));
       applyOp(f, place(f, solid));
     },
@@ -558,7 +583,8 @@ export function regenerate(doc, wasm) {
     try { g.delete(); } catch { /* already freed */ }
   }
 
-  return { bodies: outBodies, sketches: outSketches, errors, paramErrors, scope, before };
+  outBodies.push(...meshOnly);
+  return { bodies: outBodies, sketches: outSketches, errors, warnings, paramErrors, scope, before };
 }
 
 /** Rotation (manifold Euler convention: X then Y then Z) about pivot, then translate. */

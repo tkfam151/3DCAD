@@ -42,6 +42,16 @@
         "name": "OpenCAD Design",
         "role": "Editor",
         "icon": "build/icon.png"
+      },
+      {
+        "ext": "stl",
+        "name": "STL Model",
+        "role": "Viewer"
+      },
+      {
+        "ext": "obj",
+        "name": "OBJ Model",
+        "role": "Viewer"
       }
     ],
     "mac": {
