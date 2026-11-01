@@ -28,15 +28,52 @@ artifact for your computer (you need to be signed in to GitHub).
 
 ### Mac
 
-1. Download `OpenCAD-Studio-macOS` and unzip it. Open `OpenCAD Studio-…-arm64.dmg`; if that copy
-   doesn't open on your Mac, use `OpenCAD Studio-…-x64.dmg` instead (it runs through Rosetta).
-2. Drag **OpenCAD Studio** into **Applications**.
-3. The app isn't notarized (that needs a paid Apple developer account), so the first time macOS may block it.
-   Open **System Settings → Privacy & Security** and click **Open Anyway**, or run
-   `xattr -cr "/Applications/OpenCAD Studio.app"` in Terminal.
+1. Download `OpenCAD-Studio-macOS` and unzip it.
+2. Open `OpenCAD Studio-…-arm64.dmg` (Apple Silicon: M1/M2/M3/M4…) or `OpenCAD Studio-…-x64.dmg` (Intel Macs).
+3. Drag **OpenCAD Studio** into **Applications**.
+4. Open the app. The first time, macOS will probably block it, because it isn't notarized by Apple
+   (that requires a paid Apple Developer account). Follow the steps below.
 
-If the app ever fails to start it shows an error, and details are saved to
-`~/Library/Logs/OpenCAD Studio/main.log`.
+#### If the app is blocked, bounces in the Dock, or nothing happens
+
+On newer macOS versions (including macOS 27), Gatekeeper silently stops apps that aren't notarized: the
+icon bounces in the Dock and the app never opens. Try these in order.
+
+**A. Allow it in System Settings**
+
+1. Try to open OpenCAD Studio once and let it fail.
+2. Open **System Settings → Privacy & Security** and scroll down to **Security**.
+3. Click **Open Anyway** next to *"OpenCAD Studio" was blocked…* and confirm with your password or Touch ID.
+4. Open the app again and click **Open**.
+
+**B. Re-sign it on your Mac (if there is no Open Anyway button, or it still won't open)**
+
+Open **Terminal** (press ⌘Space, type `Terminal`, press Enter), paste this whole line and press Enter:
+
+```bash
+pkill -9 -f "OpenCAD Studio"; mkdir -p ~/Applications; rm -rf ~/Applications/"OpenCAD Studio.app"; ditto --noextattr --noqtn "/Applications/OpenCAD Studio.app" ~/Applications/"OpenCAD Studio.app" && codesign --force --deep --sign - ~/Applications/"OpenCAD Studio.app" && open ~/Applications/"OpenCAD Studio.app"
+```
+
+This stops any stuck copy of the app, makes a fresh copy in your personal **Applications** folder
+(`~/Applications`), signs that copy on your own Mac, and opens it. Afterwards:
+
+- Use that copy from now on: in Finder press **⌘⇧H**, open **Applications**, and drag **OpenCAD Studio**
+  to your Dock.
+- Drag the old copy in the main **Applications** folder to the Trash.
+
+If Terminal prints **Operation not permitted**, give Terminal permission to manage apps: open
+**System Settings → Privacy & Security → App Management**, turn on **Terminal**, quit and reopen
+Terminal, and paste the line again.
+
+**C. Check what macOS is doing (to report a problem)**
+
+```bash
+spctl --assess -vv ~/Applications/"OpenCAD Studio.app"; log show --last 2m --style compact --predicate 'process == "kernel" OR process == "syspolicyd"' 2>/dev/null | grep -i opencad | tail -10; cat ~/Library/Logs/"OpenCAD Studio"/main.log 2>/dev/null | tail -20
+```
+
+A line saying `ASP: Security policy would not allow process` means Gatekeeper is still blocking the app,
+so use step **A** or **B**. Messages from `main.log` come from the app itself. Please include them when
+you open an issue.
 
 ### Windows 10/11 (64-bit)
 
