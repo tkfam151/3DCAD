@@ -26,9 +26,10 @@ Geometry comes from the [Manifold](https://github.com/elalish/manifold) kernel, 
 Open the **Actions** tab of this repo, click the latest **Build apps** run, and download the
 artifact for your computer (you need to be signed in to GitHub).
 
-### Mac (Apple Silicon: M1/M2/M3/M4…)
+### Mac
 
-1. Download `OpenCAD-Studio-macOS`, unzip it and open the `.dmg`.
+1. Download `OpenCAD-Studio-macOS` and unzip it. Open `OpenCAD Studio-…-arm64.dmg`; if that copy
+   doesn't open on your Mac, use `OpenCAD Studio-…-x64.dmg` instead (it runs through Rosetta).
 2. Drag **OpenCAD Studio** into **Applications**.
 3. The app isn't notarized (that needs a paid Apple developer account), so the first time macOS may block it.
    Open **System Settings → Privacy & Security** and click **Open Anyway**, or run

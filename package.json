@@ -12,7 +12,7 @@
     "build": "vite build",
     "start": "vite build && electron .",
     "test": "node --test tests/*.test.js",
-    "dist:mac": "vite build && electron-builder --mac --arm64",
+    "dist:mac": "vite build && electron-builder --mac",
     "dist": "vite build && electron-builder",
     "dist:win": "vite build && electron-builder --win --x64"
   },
@@ -62,7 +62,8 @@
         {
           "target": "dmg",
           "arch": [
-            "arm64"
+            "arm64",
+            "x64"
           ]
         }
       ],

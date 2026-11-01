@@ -40,17 +40,17 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Build .dmg (Apple Silicon)
+      - name: Build .dmg (Apple Silicon + Intel)
         run: npm run dist:mac -- --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       # Install from the .dmg like a user would, then launch the app and wait for
       # the editor to report that it started. Fails the build if it doesn't.
-      - name: Launch test
+      - name: Launch test (Apple Silicon)
         timeout-minutes: 5
         run: |
           set -e
-          DMG=$(ls release/*.dmg)
+          DMG=$(ls release/*-arm64.dmg)
           MNT=$(hdiutil attach "$DMG" -nobrowse -readonly | grep -o '/Volumes/.*' | head -1)
           rm -rf /tmp/apps && mkdir -p /tmp/apps
           cp -R "$MNT/OpenCAD Studio.app" /tmp/apps/
@@ -60,6 +60,15 @@ jobs:
           codesign --verify --deep --strict --verbose=2 "$APP"
           OPENCAD_SMOKE_TEST=1 "$APP/Contents/MacOS/OpenCAD Studio" 2>&1 | tee /tmp/smoke.log
           grep -q SMOKE_OK /tmp/smoke.log
+      # The Intel copy runs on Apple Silicon Macs through Rosetta.
+      - name: Launch test (Intel, through Rosetta)
+        timeout-minutes: 5
+        run: |
+          set -e
+          APP="release/mac/OpenCAD Studio.app"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          OPENCAD_SMOKE_TEST=1 arch -x86_64 "$APP/Contents/MacOS/OpenCAD Studio" 2>&1 | tee /tmp/smoke-x64.log
+          grep -q SMOKE_OK /tmp/smoke-x64.log
       - uses: actions/upload-artifact@v4
         with:
           name: OpenCAD-Studio-macOS
@@ -96,6 +105,35 @@ jobs:
           name: OpenCAD-Studio-Windows
           path: release/*.exe
           if-no-files-found: error
+
+  # Browser version on GitHub Pages (Settings → Pages → Source: GitHub Actions).
+  web:
+    needs: test
+    if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - run: npm run build
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - id: deploy
+        uses: actions/deploy-pages@v4
 
   # Drafts are only visible to people with write access to the repo.
   # Publish one from the Releases page when you want it public.
