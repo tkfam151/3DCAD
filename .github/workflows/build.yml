@@ -19,6 +19,13 @@ on:
 permissions:
   contents: write
 
+# Optional: set these repository variables (Settings → Secrets and variables → Actions → Variables)
+# to turn on sign-in and cloud saving. Both values are public by design; never use the
+# database password or the service_role key here.
+env:
+  VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+  VITE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+
 jobs:
   test:
     runs-on: ubuntu-latest

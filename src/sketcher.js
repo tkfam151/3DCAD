@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { frameMatrix, shapeOutline } from './kernel/kernel.js';
+import { frameMatrix, shapeOutlines } from './kernel/kernel.js';
 import { icon } from './ui/icons.js';
 
 const TOOLS = [
@@ -10,6 +10,7 @@ const TOOLS = [
   { id: 'circle', label: 'Circle', key: 'C', icon: 'circle' },
   { id: 'polygon', label: 'Polygon', key: 'P', icon: 'polygon' },
   { id: 'slot', label: 'Slot', key: 'O', icon: 'slot' },
+  { id: 'text', label: 'Text', key: 'A', icon: 'text' },
 ];
 
 const fmt = (n) => (Math.round(n * 100) / 100).toString();
@@ -26,6 +27,9 @@ export class Sketcher {
     this.snapStep = 1;
     this.snapGrid = true;
     this.polySides = 6;
+    this.textValue = 'Hello';
+    this.textSize = 10;
+    this.textBold = false;
     this.onKey = this.onKey.bind(this);
     this.onMove = this.onMove.bind(this);
     this.onDown = this.onDown.bind(this);
@@ -109,7 +113,7 @@ export class Sketcher {
     const box = new THREE.Box3();
     const m = frameMatrix(this.frame);
     for (const s of this.shapes) {
-      for (const p of shapeOutline(s, 16)) box.expandByPoint(new THREE.Vector3(p[0], p[1], 0).applyMatrix4(m));
+      for (const p of shapeOutlines(s, 16).flat()) box.expandByPoint(new THREE.Vector3(p[0], p[1], 0).applyMatrix4(m));
     }
     if (box.isEmpty()) {
       const o = new THREE.Vector3(...this.frame.origin);
@@ -154,6 +158,7 @@ export class Sketcher {
       else if (s.type === 'circle' || s.type === 'polygon') pts.push([s.cx, s.cy]);
       else if (s.type === 'slot') pts.push([s.x1, s.y1], [s.x2, s.y2]);
       else if (s.type === 'poly') pts.push(...s.pts);
+      else if (s.type === 'text') pts.push([s.x, s.y]);
     }
     if (this.pts.length) pts.push(...this.pts);
     return pts;
@@ -287,8 +292,22 @@ export class Sketcher {
     if (this.tool === 'line' && this.pts.length >= 2) this.commitLine(false);
   }
 
+  textShape(p) {
+    return { type: 'text', x: p[0], y: p[1], text: this.textValue || 'Text', size: this.textSize, font: this.textBold ? 'bold' : 'regular', angle: 0 };
+  }
+
   addPoint(p) {
     const tool = this.tool;
+    if (tool === 'text') {
+      this.addShape(this.textShape(p));
+      // select the new text so its words and size can be edited right away
+      this.tool = 'select';
+      this.selected = new Set([this.shapes.length - 1]);
+      this.vp.dom.style.cursor = 'default';
+      this.redraw();
+      this.renderPanel();
+      return;
+    }
     if (tool === 'line') {
       if (this.pts.length >= 3) {
         const f = this.pts[0];
@@ -423,10 +442,11 @@ export class Sketcher {
     const tol = 7 * this.vp.worldPerPixel();
     let best = -1, bd = tol;
     this.shapes.forEach((s, i) => {
-      const pts = shapeOutline(s, 48);
-      for (let k = 0; k < pts.length - 1; k++) {
-        const d = segDist(p, pts[k], pts[k + 1]);
-        if (d < bd) { bd = d; best = i; }
+      for (const pts of shapeOutlines(s, 48)) {
+        for (let k = 0; k < pts.length - 1; k++) {
+          const d = segDist(p, pts[k], pts[k + 1]);
+          if (d < bd) { bd = d; best = i; }
+        }
       }
     });
     return best;
@@ -495,6 +515,7 @@ export class Sketcher {
   redraw() {
     if (this.preview) this.vp.removeOverlay(this.preview);
     const shapes = [...this.shapes];
+    if (this.tool === 'text' && this.cursor) shapes.push({ ...this.textShape(this.cursor), _preview: true });
     if (this.pts.length && this.cursor) {
       const s = this.shapeFromPoints(this.tool, this.pts, this.cursor);
       if (s) shapes.push({ ...s, _preview: true });
@@ -558,6 +579,19 @@ export class Sketcher {
     opts.querySelector('[data-k=step]').onchange = (e) => { this.snapStep = Math.max(0.01, Number(e.target.value) || 1); };
     opts.querySelector('[data-k=sides]').onchange = (e) => { this.polySides = Math.max(3, Math.min(64, Math.round(Number(e.target.value) || 6))); };
     P.appendChild(opts);
+    if (this.tool === 'text') {
+      const tf = document.createElement('div');
+      tf.className = 'form';
+      tf.innerHTML = `
+        <label class="row"><span>Text</span><input type="text" data-k="text" value="${escapeHtml(this.textValue)}"/></label>
+        <label class="row"><span>Size (mm)</span><input type="number" data-k="size" min="0.5" step="1" value="${this.textSize}"/></label>
+        <label class="row bool"><span>Bold</span><input type="checkbox" data-k="bold" ${this.textBold ? 'checked' : ''}/></label>`;
+      tf.querySelector('[data-k=text]').oninput = (e) => { this.textValue = e.target.value; this.redraw(); };
+      tf.querySelector('[data-k=size]').oninput = (e) => { const v = Number(e.target.value); if (v > 0) { this.textSize = v; this.redraw(); } };
+      tf.querySelector('[data-k=bold]').onchange = (e) => { this.textBold = e.target.checked; this.redraw(); };
+      P.appendChild(tf);
+      setTimeout(() => { const i = tf.querySelector('[data-k=text]'); i.focus(); i.select(); }, 30);
+    }
 
     const hint = document.createElement('div');
     hint.className = 'hint';
@@ -569,6 +603,7 @@ export class Sketcher {
       circle: 'Click center, then radius. Type a diameter for exact size.',
       polygon: 'Click center, then a vertex. Type a radius.',
       slot: 'Click both arc centers, then the width.',
+      text: 'Type your text above, then click where it should start. Extrude it for raised letters, or put it inside a shape to cut it in.',
     }[this.tool] + ' Hold <b>⌥</b> to disable snapping.';
     P.appendChild(hint);
 
@@ -585,7 +620,7 @@ export class Sketcher {
     this.shapes.forEach((s, i) => {
       const row = document.createElement('div');
       row.className = `shape-row${this.selected.has(i) ? ' sel' : ''}`;
-      row.innerHTML = `${icon(s.type === 'poly' ? 'line' : s.type === 'rect' ? 'rect' : s.type)} <span>${describe(s)}</span>`;
+      row.innerHTML = `${icon(s.type === 'poly' ? 'line' : s.type === 'rect' ? 'rect' : s.type)} <span>${escapeHtml(describe(s))}</span>`;
       row.onclick = (e) => {
         if (!e.shiftKey && !e.metaKey) this.selected.clear();
         this.selected.add(i);
@@ -615,14 +650,32 @@ export class Sketcher {
     const box = document.createElement('div');
     box.className = 'form shape-edit';
     const fields = {
+      text: [['size', 'Size'], ['x', 'X'], ['y', 'Y'], ['angle', 'Angle °']],
       rect: [['x', 'X'], ['y', 'Y'], ['w', 'Width'], ['h', 'Height']],
       circle: [['cx', 'Center X'], ['cy', 'Center Y'], ['r', 'Radius']],
       polygon: [['cx', 'Center X'], ['cy', 'Center Y'], ['r', 'Radius'], ['sides', 'Sides'], ['angle', 'Angle °']],
       slot: [['x1', 'X1'], ['y1', 'Y1'], ['x2', 'X2'], ['y2', 'Y2'], ['r', 'Radius']],
     }[s.type];
-    const kind = { rect: 'rectangle', circle: 'circle', polygon: 'polygon', slot: 'slot', poly: 'line' }[s.type] || s.type;
+    const kind = { text: 'text', rect: 'rectangle', circle: 'circle', polygon: 'polygon', slot: 'slot', poly: 'line' }[s.type] || s.type;
     box.innerHTML = `<div class="section-title">Edit ${kind}</div>`;
     const apply = (fn) => { this.pushHistory(); fn(); this.redraw(); this.onChange?.(this.shapes); };
+    if (s.type === 'text') {
+      const row = document.createElement('label');
+      row.className = 'row';
+      row.innerHTML = '<span>Text</span>';
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.value = s.text;
+      inp.oninput = () => { if (inp.value) { s.text = inp.value; this.redraw(); } };
+      inp.onchange = () => { if (inp.value) apply(() => { s.text = inp.value; }); this.renderPanel(); };
+      row.appendChild(inp);
+      box.appendChild(row);
+      const bold = document.createElement('label');
+      bold.className = 'row bool';
+      bold.innerHTML = `<span>Bold</span><input type="checkbox" ${s.font === 'bold' ? 'checked' : ''}/>`;
+      bold.querySelector('input').onchange = (e) => apply(() => { s.font = e.target.checked ? 'bold' : 'regular'; });
+      box.appendChild(bold);
+    }
     if (fields) {
       for (const [k, label] of fields) {
         const row = document.createElement('label');
@@ -681,6 +734,7 @@ function describe(s) {
     case 'rect': return `Rectangle ${fmt(s.w)} × ${fmt(s.h)}`;
     case 'circle': return `Circle ⌀${fmt(s.r * 2)}`;
     case 'polygon': return `Polygon ${s.sides}× R${fmt(s.r)}`;
+    case 'text': return `Text “${String(s.text).slice(0, 18)}${String(s.text).length > 18 ? '…' : ''}”`;
     case 'slot': return `Slot W${fmt(s.r * 2)}`;
     case 'poly': return `${s.closed ? 'Closed' : 'Open'} line (${s.pts.length} pts)`;
     default: return s.type;

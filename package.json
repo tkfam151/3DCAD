@@ -17,6 +17,7 @@
     "dist:win": "vite build && electron-builder --win --x64"
   },
   "devDependencies": {
+    "@supabase/supabase-js": "^2.118.0",
     "electron": "^44.10.1",
     "electron-builder": "^26.18.0",
     "manifold-3d": "^3.5.4",

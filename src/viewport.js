@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { frameMatrix, shapeOutline } from './kernel/kernel.js';
+import { frameMatrix, shapeOutlines } from './kernel/kernel.js';
 
 const Z_UP = new THREE.Vector3(0, 0, 1);
 
@@ -320,10 +320,21 @@ export class Viewport {
     group.matrixAutoUpdate = false;
     group.matrix.copy(frameMatrix(frame));
     shapes.forEach((s, idx) => {
-      const pts = shapeOutline(s, segments);
+      const isSel = selected.has(idx);
+      const outlines = shapeOutlines(s, segments);
+      if (s.type === 'text') {
+        // letters: one line per contour, no fill
+        for (const pts of outlines) {
+          const g = new THREE.BufferGeometry().setFromPoints(pts.map((p) => new THREE.Vector3(p[0], p[1], 0)));
+          const line = new THREE.Line(g, new THREE.LineBasicMaterial({ color: isSel ? 0xffb02e : s.construction ? 0xb08850 : color, depthTest: false }));
+          line.renderOrder = 5;
+          group.add(line);
+        }
+        return;
+      }
+      const pts = outlines[0] || [];
       if (pts.length < 2) return;
       const g = new THREE.BufferGeometry().setFromPoints(pts.map((p) => new THREE.Vector3(p[0], p[1], 0)));
-      const isSel = selected.has(idx);
       const mat = s.construction
         ? new THREE.LineDashedMaterial({ color: isSel ? 0xffb02e : 0xb08850, dashSize: 2, gapSize: 1.5, depthTest: false })
         : new THREE.LineBasicMaterial({ color: isSel ? 0xffb02e : color, depthTest: false });

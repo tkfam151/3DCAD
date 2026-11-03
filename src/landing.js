@@ -2,6 +2,7 @@
 import { icon } from './ui/icons.js';
 import { getRecents, removeRecent, clearRecents, timeAgo } from './recents.js';
 import { buildExamples } from './examples.js';
+import * as cloud from './cloud.js';
 import thumbBracket from './assets/examples/bracket.jpg';
 import thumbEnclosure from './assets/examples/enclosure.jpg';
 import thumbVase from './assets/examples/vase.jpg';
@@ -49,6 +50,9 @@ export class Landing {
       <div class="ld-top">
         <div class="ld-brand"><span class="logo">◆</span> OpenCAD Studio</div>
         <div class="ld-tagline">Free parametric 3D design</div>
+        ${cloud.cloudConfigured() ? `<div class="ld-account">${this.app.user
+          ? `${icon('user')}<span>${esc(this.app.user.email)}</span><button class="btn small" data-act="signout">Sign out</button>`
+          : `<button class="btn small" data-act="signin">${icon('user')} Sign in</button>`}</div>` : ''}
       </div>
       <div class="ld-body">
         <nav class="ld-side">
@@ -81,6 +85,13 @@ export class Landing {
               <button class="btn" data-act="discard-recovery">Discard</button>
               <button class="btn primary" data-act="recover">Recover</button>
             </div>` : ''}
+          ${cloud.cloudConfigured() ? `
+          <section>
+            <div class="ld-section-head"><h2>${icon('cloud')} Cloud designs</h2></div>
+            ${this.app.user
+              ? `<div class="ld-grid" data-cloud><div class="ld-empty">${icon('cloud')}<span>Loading your designs…</span></div></div>`
+              : `<div class="ld-empty">${icon('cloud')}<span><button class="link-btn inline" data-act="signin">Sign in</button> to save designs to the cloud and open them on any computer.</span></div>`}
+          </section>` : ''}
           <section>
             <div class="ld-section-head">
               <h2>Recent</h2>
@@ -106,6 +117,7 @@ export class Landing {
         </main>
       </div>`;
 
+    if (this.app.user) this.loadCloud();
     // Pip lives in the corner of whichever screen is showing
     this.app.mascot?.mount(this.el);
     this.el.querySelectorAll('[data-act]').forEach((b) => {
@@ -134,6 +146,42 @@ export class Landing {
     });
   }
 
+  async loadCloud() {
+    const grid = this.el.querySelector('[data-cloud]');
+    if (!grid) return;
+    let rows;
+    try {
+      rows = await cloud.listDesigns();
+    } catch (e) {
+      grid.innerHTML = `<div class="ld-empty">${icon('warn')}<span>Couldn’t load your cloud designs: ${esc(e.message)}</span></div>`;
+      return;
+    }
+    if (!this.el.contains(grid)) return; // the screen was re-rendered meanwhile
+    if (!rows.length) {
+      grid.innerHTML = `<div class="ld-empty">${icon('cloud')}<span>No cloud designs yet. In the editor, click <b>Cloud</b> to save one.</span></div>`;
+      return;
+    }
+    grid.innerHTML = rows.map((r) => `
+      <div class="ld-card" data-cloud-id="${esc(r.id)}" role="button" tabindex="0" title="${esc(r.name)}">
+        <div class="ld-thumb">${r.thumb && r.thumb.startsWith('data:image/') ? `<img src="${esc(r.thumb)}" alt=""/>` : icon('cloud')}
+          <span class="ld-kind">Cloud</span>
+          <button class="ld-remove" data-remove title="Delete from the cloud">${icon('close')}</button>
+        </div>
+        <div class="ld-meta"><b>${esc(r.name)}</b><span>${timeAgo(new Date(r.updated_at).getTime())}</span></div>
+      </div>`).join('');
+    grid.querySelectorAll('[data-cloud-id]').forEach((card) => {
+      const row = rows.find((r) => r.id === card.dataset.cloudId);
+      card.onclick = async (e) => {
+        if (e.target.closest('[data-remove]')) {
+          e.stopPropagation();
+          if (await this.app.deleteCloudDesign(row.id, row.name)) this.loadCloud();
+          return;
+        }
+        this.app.openCloudDesign(row.id);
+      };
+    });
+  }
+
   recentCard(r) {
     const kind = r.kind || 'ocad';
     const unavailable = !r.path && !r.doc;
@@ -155,6 +203,8 @@ export class Landing {
     else if (act === 'recover') a.recoverAutosave();
     else if (act === 'discard-recovery') { a.discardAutosave(); this.render(); }
     else if (act === 'clear-recents') { clearRecents(); this.render(); }
+    else if (act === 'signin') a.showAuth();
+    else if (act === 'signout') a.doSignOut();
     else if (act === 'show-pip') { a.mascot.setHidden(false); this.render(); }
   }
 }

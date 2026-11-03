@@ -14,6 +14,8 @@ sketch → extrude/revolve → modify, with every step recorded on an editable *
 | **Solid features** | Extrude (one side, flipped or symmetric; rounded corners, taper, twist), Revolve, Box, Cylinder (both with edge fillets), Sphere, Cone, Torus, STL import. |
 | **Operations** | New body / Join / Cut / Intersect on every feature. Extruding a face sketch automatically joins, or cuts when you extrude inward. |
 | **Modify** | Move/Rotate with an on-screen gizmo, Scale, Combine (join/cut/intersect bodies), Mirror, Linear and Circular patterns, Hollow (shell). |
+| **Text** | A Text tool in Sketch (**A**): type words, pick a size and bold, click to place. Extrude for raised letters or draw text inside a shape to engrave it. |
+| **Sign in & cloud save** | Create an account with email and password, click **Cloud** to save, and reopen your designs from the start screen on any computer, in the app or the website. Powered by Supabase. |
 | **Drag to resize** | Double-click a shape (or click its timeline step) and drag the blue arrows to change its width, depth, height, radius or extrude distance live. Hold ⇧ for 0.1 mm steps or ⌥ for no snapping. |
 | **Parametric** | Every feature stays editable on the timeline. Fields take expressions such as `width/2 + 3` or `1in`, using named **Parameters**. Suppress, reorder, rename or delete steps. |
 | **Inspect** | Measure distances, see size, volume, surface area and estimated PLA mass. |
@@ -155,12 +157,35 @@ src/kernel/      parametric engine: features, expressions, regeneration (pure JS
 src/viewport.js  three.js 3D view, picking, gizmo, camera
 src/sketcher.js  interactive 2D sketch editor
 src/app.js       UI: toolbar, browser, timeline, property panels, files
-src/landing.js   start screen: new design, open, recents, templates
+src/landing.js   start screen: new design, open, recents, cloud designs, templates
+src/cloud.js     sign-in and cloud saving (Supabase)
+supabase/        database migrations (designs table + security rules)
 tests/           kernel tests (node --test)
 site/            project website (Jekyll); the web app is added at /app/ when it's published
 ```
 
+## Cloud saving (Supabase) setup
+
+Sign-in and cloud saving use a [Supabase](https://supabase.com) project.
+
+1. **Database table:** `supabase/migrations/20261103090000_designs.sql` creates the `designs` table with
+   row level security, so each user can only read and change their own designs. If your Supabase project is
+   linked to this GitHub repo, the migration is applied when it reaches the production branch. Otherwise,
+   paste the file into **Supabase → SQL Editor** and click **Run**.
+2. **App keys:** copy the **Project URL** and the **anon / publishable key** from **Project Settings → API**
+   and put them in `src/cloud-config.js`, or set the repository variables `SUPABASE_URL` and
+   `SUPABASE_ANON_KEY` (**Settings → Secrets and variables → Actions → Variables**). These two values are
+   meant to be public. **Never** put the database password or the `service_role` key in the app.
+3. **Email links:** in **Supabase → Authentication → URL Configuration**, set the Site URL to
+   `https://tkfam151.github.io/3DCAD/app/` and add it to the Redirect URLs, so confirmation and
+   password-reset emails open the web app.
+
+Until the keys are set, the app works normally and simply hides the sign-in and Cloud buttons.
+
 ## Credits
+
+The Text tool uses the Droid Sans font (Apache License 2.0, see `src/assets/fonts/NOTICE`).
+
 
 Pip's look is borrowed from the pixel-art mascot of [Claude Code](https://claude.com/claude-code).
 OpenCAD Studio is an independent project and is not made by or affiliated with Anthropic.

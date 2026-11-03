@@ -18,6 +18,10 @@ test('Pip answers how-to questions', () => {
   has('mac app keeps bouncing', /Terminal fix/);
   has('how do I make it bigger', /blue arrows/);
   has('edit the shape with arrows', /blue arrows/);
+  has('how do I add text', /Text/);
+  has('engrave my name', /engrave/);
+  has('how do I save to the cloud', /Cloud/);
+  has('sign in', /Sign in/);
   has('what is the meaning of life', /not sure/);
   assert.equal(answer('how do I make a hole').actions[0].cmd, 'sketch');
 });

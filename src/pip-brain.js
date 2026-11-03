@@ -26,10 +26,12 @@ const SYN = {
   wrong: 'error', broken: 'error', problem: 'error', fail: 'error', failed: 'error', red: 'error', warning: 'error',
   undo: 'undo', mistake: 'undo', back: 'undo',
   step: 'step', iges: 'step', fusion: 'step', solidworks: 'step', f3d: 'step',
-  thread: 'unsupported', threads: 'unsupported', screw: 'unsupported', text: 'unsupported', font: 'unsupported',
+  thread: 'unsupported', threads: 'unsupported', screw: 'unsupported',
+  text: 'words', word: 'words', letter: 'words', letters: 'words', font: 'words', engrave: 'words', emboss: 'words', label: 'words', writing: 'words', write: 'words', name: 'words',
+  cloud: 'cloud', account: 'cloud', login: 'cloud', signin: 'cloud', sign: 'cloud', online: 'cloud', sync: 'cloud', supabase: 'cloud', password: 'cloud',
   assembly: 'unsupported', joint: 'unsupported', drawing2d: 'unsupported', cam: 'unsupported', gear: 'unsupported',
   blocked: 'mac', gatekeeper: 'mac', notarized: 'mac', bounce: 'mac', bouncing: 'mac',
-  who: 'pip', yourself: 'pip', name: 'pip',
+  who: 'pip', yourself: 'pip',
   rect: 'rectangle', square: 'rectangle', box: 'box', cube: 'box', cylinder: 'cylinder', tube: 'cylinder', ball: 'sphere',
   circle: 'circle', polygon: 'circle', hexagon: 'circle',
   timeline: 'edit', change: 'edit', modify: 'edit', edit: 'edit', later: 'edit',
@@ -42,7 +44,7 @@ const KB = [
   },
   {
     topic: ['unsupported'],
-    a: 'I can\'t do that one yet. Threads, text, gears, assemblies and 2D drawings aren\'t built in. Tip: many threaded parts and gears are on Printables or Thingiverse as STL, and you can open those here and combine them.',
+    a: 'I can\'t do that one yet. Threads, gears, assemblies and 2D drawings aren\'t built in. Tip: many threaded parts and gears are on Printables or Thingiverse as STL, and you can open those here and combine them.',
   },
   {
     topic: ['mac'],
@@ -52,6 +54,16 @@ const KB = [
     topic: ['sketch'], also: ['rectangle', 'circle', 'line'],
     a: 'Press <b>S</b> (Sketch), then click an origin plane or any flat face of a body. Draw with <b>Line</b>, <b>Rectangle</b>, <b>Circle</b>, <b>Polygon</b> or <b>Slot</b>. While drawing, type a number for an exact size (for a rectangle, <code>40,20</code>). Press <b>Enter</b> to finish.',
     actions: [{ label: 'Start a sketch', cmd: 'sketch' }],
+  },
+  {
+    topic: ['words'],
+    a: 'In a sketch, pick the <b>Text</b> tool (<b>A</b>), type your words and size, and click where they should start. Extrude the sketch for raised letters. To engrave, draw the text <b>inside</b> a rectangle in the same sketch, or sketch it on a face and extrude with a negative distance.',
+    actions: [{ label: 'Start a sketch', cmd: 'sketch' }],
+  },
+  {
+    topic: ['cloud'],
+    a: 'Sign in from the start screen, then click <b>Cloud</b> in the toolbar to save your design online. Your cloud designs show up on the start screen on any computer, in the desktop app or the website.',
+    actions: [{ label: 'Save to cloud', cmd: 'cloudSave' }, { label: 'Sign in', cmd: 'signIn' }],
   },
   {
     topic: ['resize', 'arrow'],

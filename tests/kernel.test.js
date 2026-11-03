@@ -196,3 +196,24 @@ test('drag arrows sit on the faces they resize', async () => {
   close(ex.origin[0], 5, 1e-6); close(ex.origin[1], -7, 1e-6); close(ex.origin[2], 2, 1e-6);
   close(ex.dir[1], -1, 1e-6);
 });
+
+test('text in a sketch extrudes into letters with holes', async () => {
+  const fs = await import('node:fs');
+  const { registerFont } = await import('../src/kernel/kernel.js');
+  registerFont('regular', JSON.parse(fs.readFileSync(new URL('../src/assets/fonts/droid_sans_regular.typeface.json', import.meta.url), 'utf8')));
+  const r = regenerate(doc([
+    { id: 's', type: 'sketch', params: { plane: 'XY' }, shapes: [{ type: 'text', x: 0, y: 0, text: 'OA8', size: 10, font: 'regular', angle: 0 }] },
+    { id: 'e', type: 'extrude', params: { sketch: 's', distance: '2', operation: 'new' } },
+  ]), wasm);
+  assert.deepEqual(r.errors, {});
+  const b = r.bodies[0];
+  assert.ok(b.volume > 20 && b.volume < 200, `volume ${b.volume}`);
+  // letters sit to the right of the anchor, about one cap height tall
+  assert.ok(b.bbox.min[0] >= -0.5 && b.bbox.max[0] > 15 && b.bbox.max[1] > 6 && b.bbox.max[1] < 12, JSON.stringify(b.bbox));
+  // engraving: text inside a rectangle cuts through it (even-odd)
+  const plate = regenerate(doc([
+    { id: 's', type: 'sketch', params: { plane: 'XY' }, shapes: [{ type: 'rect', x: -5, y: -5, w: 40, h: 20 }, { type: 'text', x: 0, y: 0, text: 'OA8', size: 10, font: 'regular' }] },
+    { id: 'e', type: 'extrude', params: { sketch: 's', distance: '2', operation: 'new' } },
+  ]), wasm);
+  close(plate.bodies[0].volume, 40 * 20 * 2 - b.volume, 0.02);
+});

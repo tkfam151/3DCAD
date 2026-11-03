@@ -1,7 +1,7 @@
 // Where to put the drag arrows for a feature being edited.
 import { Vector3 } from 'three';
 import { evaluate } from './kernel/expr.js';
-import { moveMatrix, shapeOutline } from './kernel/kernel.js';
+import { moveMatrix, shapeOutlines } from './kernel/kernel.js';
 
 /**
  * Returns [{ key, label, origin, dir, value, factor, min }] for the feature's
@@ -79,7 +79,7 @@ export function featureHandles(f, result) {
       let minU = Infinity, minV = Infinity, maxU = -Infinity, maxV = -Infinity;
       for (const s of sk.shapes) {
         if (s.construction) continue;
-        for (const [u, v] of shapeOutline(s, 24)) {
+        for (const [u, v] of shapeOutlines(s, 24).flat()) {
           minU = Math.min(minU, u); maxU = Math.max(maxU, u);
           minV = Math.min(minV, v); maxV = Math.max(maxV, v);
         }

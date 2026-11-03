@@ -2,6 +2,7 @@
 // geometry kernel and returns plain mesh data for display/export.
 
 import { Matrix4, Vector3, Euler } from 'three';
+import { Font } from 'three/examples/jsm/loaders/FontLoader.js';
 import { evaluate, evaluateParameters } from './expr.js';
 
 const AXIS_VEC = { X: [1, 0, 0], Y: [0, 1, 0], Z: [0, 0, 1] };
@@ -110,6 +111,57 @@ export function shapeContour(s, segments = 64) {
     default:
       return null;
   }
+}
+
+// ---------- text ----------
+
+const fonts = new Map();
+const textCache = new Map();
+
+/** Make a typeface.json font available to sketch text shapes. */
+export function registerFont(name, json) {
+  fonts.set(name, new Font(json));
+  textCache.clear();
+}
+
+export function fontNames() { return [...fonts.keys()]; }
+
+/** Contours (outer boundaries and holes) for a text shape, in sketch coordinates. */
+function textContours(s, segments = 64) {
+  const font = fonts.get(s.font || 'regular') || fonts.values().next().value;
+  if (!font || !s.text || !(s.size > 0)) return [];
+  const div = Math.max(2, Math.round(segments / 16));
+  const key = `${s.font}|${s.size}|${div}|${s.text}`;
+  let local = textCache.get(key);
+  if (!local) {
+    local = [];
+    for (const shape of font.generateShapes(String(s.text), s.size)) {
+      const { shape: outer, holes } = shape.extractPoints(div);
+      for (const ring of [outer, ...holes]) {
+        const pts = ring.map((p) => [p.x, p.y]);
+        if (pts.length > 2 && pts[0][0] === pts[pts.length - 1][0] && pts[0][1] === pts[pts.length - 1][1]) pts.pop();
+        if (pts.length >= 3) local.push(pts);
+      }
+    }
+    if (textCache.size > 200) textCache.clear();
+    textCache.set(key, local);
+  }
+  const a = ((s.angle || 0) * Math.PI) / 180, c = Math.cos(a), sn = Math.sin(a);
+  return local.map((ring) => ring.map(([x, y]) => [s.x + x * c - y * sn, s.y + x * sn + y * c]));
+}
+
+/** All closed contours a shape contributes to the sketch profile. */
+export function shapeContours(s, segments = 64) {
+  if (s.type === 'text') return textContours(s, segments);
+  const c = shapeContour(s, segments);
+  return c ? [c] : [];
+}
+
+/** Polylines for drawing a shape (one per contour; open polylines included). */
+export function shapeOutlines(s, segments = 64) {
+  if (s.type === 'text') return textContours(s, segments).map((c) => [...c, c[0]]);
+  const o = shapeOutline(s, segments);
+  return o.length ? [o] : [];
 }
 
 /** Points for drawing a shape outline (open polylines included). */
@@ -269,8 +321,7 @@ export function regenerate(doc, wasm) {
       const contours = [];
       for (const s of f.shapes || []) {
         if (s.construction) continue;
-        const c = shapeContour(s, segments);
-        if (c) contours.push(c);
+        contours.push(...shapeContours(s, segments));
       }
       const cs = contours.length ? T(new CrossSection(contours, 'EvenOdd')) : null;
       sketches.set(f.id, { id: f.id, name: f.name, frame: fr, shapes: f.shapes || [], cs, area: cs ? cs.area() : 0 });

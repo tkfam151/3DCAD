@@ -367,3 +367,18 @@ body.dragging:not(.on-landing) #drop-hint { display: grid; }
 @media (prefers-reduced-motion: reduce) {
   .pip *, .pip-bubble { animation: none !important; transition: none !important; }
 }
+
+/* ---------- account & cloud ---------- */
+.ld-account { margin-left: auto; display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; -webkit-app-region: no-drag; }
+.ld-account .icon { width: 16px; height: 16px; }
+.ld-section-head h2 { display: flex; align-items: center; gap: 8px; }
+.ld-section-head h2 .icon { width: 18px; height: 18px; color: #a9c7ef; }
+.link-btn.inline { display: inline; padding: 0; font-size: inherit; }
+.auth-form { display: flex; flex-direction: column; gap: 12px; }
+.auth-row { display: flex; flex-direction: column; gap: 5px; }
+.auth-row span { font-size: 12px; color: var(--muted); }
+.auth-msg { padding: 8px 10px; border-radius: 7px; font-size: 12.5px; background: rgba(229,83,75,.13); border: 1px solid rgba(229,83,75,.45); color: #ffb3ad; }
+.auth-msg.ok { background: rgba(70,185,122,.12); border-color: rgba(70,185,122,.45); color: #a6e6c1; }
+.auth-submit { justify-content: center; }
+.auth-links { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.auth-links .link-btn { padding: 0; }

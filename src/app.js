@@ -15,6 +15,7 @@ import { Landing } from './landing.js';
 import { addRecent } from './recents.js';
 import { Mascot } from './mascot.js';
 import { featureHandles } from './handles.js';
+import * as cloud from './cloud.js';
 
 const CHEERS = {
   extrude: ['Nice extrude!', 'Look at that — it’s 3D now!', 'Solid work.'],
@@ -93,7 +94,17 @@ export class App {
       onAction: (cmd) => this.command(cmd),
     });
     this.mascot.mount(document.getElementById('viewport-wrap'));
+    this.user = null;
+    this.cloudId = null;
     this.landing = new Landing(this);
+    if (cloud.cloudConfigured()) {
+      cloud.currentUser().then((u) => { this.user = u; if (this.landing.visible) this.landing.render(); }).catch(() => {});
+      cloud.onAuthChange((u) => {
+        const changed = (u?.id || null) !== (this.user?.id || null);
+        this.user = u;
+        if (changed && this.landing.visible) this.landing.render();
+      });
+    }
     this.bindDragDrop();
     this.regen();
     this.vp.setView('iso');
@@ -187,7 +198,8 @@ export class App {
   }
 
   discardAutosave() {
-    localStorage.removeItem(AUTOSAVE_KEY);
+    clearTimeout(this._autosaveT); // a pending autosave must not bring the banner back
+    try { localStorage.removeItem(AUTOSAVE_KEY); } catch { /* storage unavailable */ }
   }
 
   loadDoc(doc, name = 'Untitled', path = null) {
@@ -200,6 +212,7 @@ export class App {
     this.selection.clear();
     this.fileName = name;
     this.filePath = path;
+    this.cloudId = null;
     this.mode = 'normal';
     this.exitMeasure?.();
     this.landing?.hide();
@@ -294,6 +307,7 @@ export class App {
       { title: 'File', items: [
         ['new', 'New', 'new'], ['open', 'Open', 'open'], ['save', 'Save', 'save'],
         ['menu:export', 'Export', 'export'], ['importMesh', 'Import', 'import'],
+        ...(cloud.cloudConfigured() ? [['cloudSave', 'Cloud', 'cloud']] : []),
       ] },
       { title: 'Create', items: [
         ['sketch', 'Sketch', 'sketch', 'S'], ['extrude', 'Extrude', 'extrude', 'E'], ['revolve', 'Revolve', 'revolve'],
@@ -372,7 +386,7 @@ export class App {
   command(cmd, arg) {
     if (cmd.startsWith('view:')) { this.vp.resetUp(); return this.vp.setView(cmd.slice(5)); }
     if (cmd.startsWith('toggle:')) return this.toggleDisplay(cmd.slice(7));
-    if (this.landing.visible && !['new', 'open', 'openFile', 'examples', 'about', 'shortcuts', 'home', 'mascot'].includes(cmd)) return;
+    if (this.landing.visible && !['new', 'open', 'openFile', 'examples', 'about', 'shortcuts', 'home', 'mascot', 'signIn', 'signOut'].includes(cmd)) return;
     if (FEATURES[cmd] && cmd !== 'sketch' && cmd !== 'importMesh') return this.createFeature(cmd);
     switch (cmd) {
       case 'new': return this.newDoc();
@@ -388,6 +402,9 @@ export class App {
       case 'importMesh': return this.importMesh();
       case 'home': return this.goHome();
       case 'mascot': return this.mascot.toggle();
+      case 'cloudSave': return this.saveToCloud();
+      case 'signIn': return this.user ? this.accountMenu() : this.showAuth();
+      case 'signOut': return this.doSignOut();
       case 'sketch': return this.startSketchFlow();
       case 'measure': return this.toggleMeasure();
       case 'params': return this.openParameters();
@@ -1460,6 +1477,7 @@ export class App {
     this.doc = emptyDoc();
     this.fileName = 'Untitled';
     this.filePath = null;
+    this.cloudId = null;
     this.meshSource = null;
     this.undoStack = [];
     this.redoStack = [];
@@ -1513,12 +1531,168 @@ export class App {
       this.rememberRecent({ kind: 'ocad', name: this.fileName });
       this.toast(`Saved ${this.fileName}`);
       this.mascot.say(`Saved <b>${esc(this.fileName)}</b>. 💾`, 'happy', 3000);
-      localStorage.removeItem(AUTOSAVE_KEY);
+      this.discardAutosave();
       return true;
     } catch (e) {
       this.toast(`Save failed: ${e.message}`, 'error');
       return false;
     }
+  }
+
+  // ===================== cloud (Supabase) =====================
+
+  async saveToCloud() {
+    if (!cloud.cloudConfigured()) return this.toast('Cloud saving isn’t set up in this version.', 'error');
+    if (!this.user) return this.showAuth({ reason: 'Sign in to save your designs to the cloud.', then: () => this.saveToCloud() });
+    if (this.editing) this.commitEdit();
+    const name = this.fileName === 'Untitled' && !this.cloudId ? await this.askName() : this.fileName;
+    if (!name) return;
+    try {
+      let thumb = null;
+      try { thumb = this.vp.thumbnail(320, 200); } catch { /* optional */ }
+      const row = await cloud.saveDesign({ id: this.cloudId, name, doc: this.doc, thumb });
+      this.cloudId = row.id;
+      this.fileName = row.name;
+      this.setDirty(false);
+      this.discardAutosave();
+      this.renderBrowser();
+      this.toast(`Saved “${row.name}” to the cloud`);
+      this.mascot.say(`Saved to the cloud ☁️ Open it from the start screen on any computer.`, 'cheer', 4500);
+    } catch (e) {
+      this.toast(`Cloud save failed: ${e.message}`, 'error');
+      this.mascot.say(`I couldn’t save to the cloud: ${esc(e.message)}`, 'worried', 7000);
+    }
+  }
+
+  askName() {
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = (v) => { if (!done) { done = true; resolve(v); } };
+      const m = this.modal({
+        title: 'Name your design',
+        body: '<input class="prompt-input" id="cloud-name" maxlength="200" placeholder="My part"/>',
+        buttons: [{ label: 'Cancel', action: () => finish(null) }, { label: 'Save', primary: true, action: () => finish(m.querySelector('#cloud-name').value.trim() || 'Untitled') }],
+        onClose: () => finish(null),
+      });
+      setTimeout(() => m.querySelector('#cloud-name')?.focus(), 20);
+    });
+  }
+
+  async openCloudDesign(id) {
+    if (!this.landing.visible && !(await this.confirmDiscard())) return;
+    try {
+      const row = await cloud.loadDesign(id);
+      this.loadDoc(row.doc, row.name);
+      this.cloudId = row.id;
+    } catch (e) {
+      this.toast(`Couldn’t open that design: ${e.message}`, 'error');
+    }
+  }
+
+  async deleteCloudDesign(id, name) {
+    return new Promise((resolve) => {
+      this.modal({
+        title: `Delete “${esc(name)}”?`,
+        body: '<p>This removes it from the cloud on every computer. It can’t be undone.</p>',
+        buttons: [
+          { label: 'Cancel', action: () => resolve(false) },
+          { label: 'Delete', danger: true, action: async () => {
+            try { await cloud.deleteDesign(id); if (this.cloudId === id) this.cloudId = null; resolve(true); }
+            catch (e) { this.toast(e.message, 'error'); resolve(false); }
+          } },
+        ],
+        onClose: () => resolve(false),
+      });
+    });
+  }
+
+  /** Sign in / create account window. */
+  showAuth({ reason = '', then } = {}) {
+    if (!cloud.cloudConfigured()) return this.toast('Cloud sign-in isn’t set up in this version.', 'error');
+    let mode = 'signin';
+    const m = this.modal({
+      title: 'Sign in to OpenCAD',
+      body: `${reason ? `<p class="muted">${esc(reason)}</p>` : ''}
+        <form class="auth-form" novalidate>
+          <label class="auth-row"><span>Email</span><input id="auth-email" type="email" autocomplete="email" required placeholder="you@example.com"/></label>
+          <label class="auth-row"><span>Password</span><input id="auth-password" type="password" autocomplete="current-password" required minlength="6" placeholder="At least 6 characters"/></label>
+          <div class="auth-msg" role="alert" hidden></div>
+          <button class="btn primary auth-submit" type="submit">Sign in</button>
+          <div class="auth-links">
+            <button type="button" class="link-btn" data-toggle>New here? Create an account</button>
+            <button type="button" class="link-btn" data-forgot>Forgot password?</button>
+          </div>
+        </form>`,
+      buttons: [],
+    });
+    const form = m.querySelector('form');
+    const email = m.querySelector('#auth-email');
+    const pw = m.querySelector('#auth-password');
+    const msg = m.querySelector('.auth-msg');
+    const submit = m.querySelector('.auth-submit');
+    const show = (text, ok = false) => { msg.hidden = !text; msg.textContent = text || ''; msg.classList.toggle('ok', ok); };
+    const setMode = (md) => {
+      mode = md;
+      m.querySelector('.modal-head').firstChild.textContent = md === 'signup' ? 'Create your OpenCAD account' : 'Sign in to OpenCAD';
+      submit.textContent = md === 'signup' ? 'Create account' : 'Sign in';
+      pw.autocomplete = md === 'signup' ? 'new-password' : 'current-password';
+      m.querySelector('[data-toggle]').textContent = md === 'signup' ? 'Already have an account? Sign in' : 'New here? Create an account';
+      show('');
+    };
+    const close = () => m.closest('.modal-backdrop')?.remove();
+    m.querySelector('[data-toggle]').onclick = () => setMode(mode === 'signup' ? 'signin' : 'signup');
+    m.querySelector('[data-forgot]').onclick = async () => {
+      if (!email.value.includes('@')) return show('Type your email above first.');
+      try { await cloud.sendPasswordReset(email.value.trim()); show('Check your email for a link to reset your password.', true); }
+      catch (e) { show(e.message); }
+    };
+    form.addEventListener('keydown', (e) => e.stopPropagation());
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      if (!email.value.includes('@')) return show('Enter your email address.');
+      if (pw.value.length < 6) return show('Use a password with at least 6 characters.');
+      submit.disabled = true;
+      submit.textContent = mode === 'signup' ? 'Creating…' : 'Signing in…';
+      try {
+        if (mode === 'signup') {
+          const { needsConfirmation } = await cloud.signUp(email.value.trim(), pw.value);
+          if (needsConfirmation) {
+            setMode('signin');
+            show('Account created! Check your email and click the confirmation link, then sign in here.', true);
+            return;
+          }
+        } else {
+          await cloud.signIn(email.value.trim(), pw.value);
+        }
+        this.user = await cloud.currentUser();
+        close();
+        this.toast(`Signed in as ${this.user?.email || 'you'}`);
+        if (this.landing.visible) this.landing.render();
+        then?.();
+      } catch (err) {
+        show(err.message);
+      } finally {
+        submit.disabled = false;
+        submit.textContent = mode === 'signup' ? 'Create account' : 'Sign in';
+      }
+    };
+    setTimeout(() => email.focus(), 20);
+  }
+
+  accountMenu() {
+    this.modal({
+      title: 'Your account',
+      body: `<p>Signed in as <b>${esc(this.user?.email || '')}</b>.</p><p class="muted">Your cloud designs are on the start screen.</p>`,
+      buttons: [{ label: 'Close' }, { label: 'Sign out', danger: true, action: () => this.doSignOut() }],
+    });
+  }
+
+  async doSignOut() {
+    try { await cloud.signOut(); } catch (e) { return this.toast(e.message, 'error'); }
+    this.user = null;
+    this.cloudId = null;
+    this.toast('Signed out');
+    if (this.landing.visible) this.landing.render();
   }
 
   exportMenu(e) {
