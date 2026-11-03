@@ -43,7 +43,10 @@ jobs:
 
   mac:
     needs: test
-    runs-on: macos-latest
+    # Apple Silicon runners are often out of capacity; the Intel runner can still build
+    # the arm64 .dmg. Set the repository variable MAC_RUNNER=macos-latest to build (and
+    # launch-test) on Apple Silicon instead.
+    runs-on: ${{ vars.MAC_RUNNER || 'macos-15-intel' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -58,6 +61,7 @@ jobs:
       # Install from the .dmg like a user would, then launch the app and wait for
       # the editor to report that it started. Fails the build if it doesn't.
       - name: Launch test
+        if: runner.arch == 'ARM64'
         timeout-minutes: 5
         run: |
           set -e
@@ -71,6 +75,17 @@ jobs:
           codesign --verify --deep --strict --verbose=2 "$APP"
           OPENCAD_SMOKE_TEST=1 "$APP/Contents/MacOS/OpenCAD Studio" 2>&1 | tee /tmp/smoke.log
           grep -q SMOKE_OK /tmp/smoke.log
+      - name: Check the .dmg (mounts, arm64, valid signature)
+        run: |
+          set -e
+          DMG=$(ls release/*.dmg)
+          MNT=$(hdiutil attach "$DMG" -nobrowse -readonly | grep -o '/Volumes/.*' | head -1)
+          APP="$MNT/OpenCAD Studio.app"
+          file "$APP/Contents/MacOS/OpenCAD Studio" | tee /tmp/arch.txt
+          grep -q arm64 /tmp/arch.txt
+          codesign --verify --deep --strict "$APP"
+          test -f "$APP/Contents/Resources/app.asar"
+          hdiutil detach "$MNT" -quiet
       - uses: actions/upload-artifact@v4
         with:
           name: OpenCAD-Studio-macOS
