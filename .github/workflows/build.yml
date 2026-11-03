@@ -177,6 +177,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: dist-files
+          pattern: OpenCAD-Studio-*   # only the installers, not the website bundle
           merge-multiple: true
       - name: Create draft GitHub release
         uses: softprops/action-gh-release@v2
