@@ -4,5 +4,5 @@
 // Never put the database password or the service_role key here.
 //
 // They can also be set at build time with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.
-export const SUPABASE_URL = '';
-export const SUPABASE_ANON_KEY = '';
+export const SUPABASE_URL = 'https://lfplpizvmcgvvvvpgomv.supabase.co';
+export const SUPABASE_ANON_KEY = 'sb_publishable_NZO6rqn_UsYFTJgYJOGmPA_Eh2nr-do';
