@@ -123,6 +123,23 @@ export const FEATURES = {
       ...PLACE,
     ],
   },
+  text: {
+    label: 'Text',
+    icon: 'text',
+    fields: [
+      { key: 'text', label: 'Text', type: 'string', default: 'Hello' },
+      { key: 'size', label: 'Letter height', type: 'number', default: '10' },
+      { key: 'depth', label: 'Thickness', type: 'number', default: '3' },
+      { key: 'bold', label: 'Bold', type: 'bool', default: false },
+      { key: 'align', label: 'Align', type: 'select', default: 'center', options: [
+        { value: 'left', label: 'Left' },
+        { value: 'center', label: 'Center' },
+        { value: 'right', label: 'Right' },
+      ] },
+      ...OP,
+      ...PLACE,
+    ],
+  },
   torus: {
     label: 'Torus',
     icon: 'torus',

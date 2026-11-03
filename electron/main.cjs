@@ -178,7 +178,7 @@ function buildMenu() {
       label: 'Create',
       submenu: [
         ['Sketch', 'sketch'], ['Extrude', 'extrude'], ['Revolve', 'revolve'], null,
-        ['Box', 'box'], ['Cylinder', 'cylinder'], ['Sphere', 'sphere'], ['Cone', 'cone'], ['Torus', 'torus'],
+        ['Box', 'box'], ['Cylinder', 'cylinder'], ['Sphere', 'sphere'], ['Cone', 'cone'], ['Torus', 'torus'], ['3D Text', 'text'],
       ].map((x) => (x ? { label: x[0], click: () => send(x[1]) } : { type: 'separator' })),
     },
     {

@@ -217,3 +217,28 @@ test('text in a sketch extrudes into letters with holes', async () => {
   ]), wasm);
   close(plate.bodies[0].volume, 40 * 20 * 2 - b.volume, 0.02);
 });
+
+test('3D text feature: raised, engraved and aligned', async () => {
+  const fs = await import('node:fs');
+  const { registerFont } = await import('../src/kernel/kernel.js');
+  registerFont('regular', JSON.parse(fs.readFileSync(new URL('../src/assets/fonts/droid_sans_regular.typeface.json', import.meta.url), 'utf8')));
+  const plate = { id: 'p', type: 'box', params: { width: '60', depth: '20', height: '4', operation: 'new' } };
+  const t = (extra) => ({ id: 't', type: 'text', params: { text: 'OK', size: '10', depth: '2', align: 'center', x: '0', y: '-5', z: '4', ...extra } });
+
+  const alone = regenerate(doc([t({ operation: 'new' })]), wasm);
+  assert.deepEqual(alone.errors, {});
+  const tb = alone.bodies[0].bbox;
+  close((tb.min[0] + tb.max[0]) / 2, 0, 0.05); // centred on x
+  close(tb.min[2], 4, 1e-6); close(tb.max[2], 6, 1e-6);
+  const lettersVol = alone.bodies[0].volume;
+
+  const raised = regenerate(doc([plate, t({ operation: 'join', target: 'p' })]), wasm);
+  close(raised.bodies[0].volume, 60 * 20 * 4 + lettersVol, 0.01);
+
+  const engraved = regenerate(doc([plate, t({ operation: 'cut', target: 'p', z: '3' })]), wasm);
+  assert.deepEqual(engraved.errors, {});
+  close(engraved.bodies[0].volume, 60 * 20 * 4 - lettersVol / 2, 0.02); // 1 mm of the 2 mm letters inside the plate
+
+  const empty = regenerate(doc([t({ text: '   ', operation: 'new' })]), wasm);
+  assert.match(empty.errors.t, /Type some text/);
+});

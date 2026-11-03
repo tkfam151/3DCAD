@@ -14,7 +14,7 @@ sketch → extrude/revolve → modify, with every step recorded on an editable *
 | **Solid features** | Extrude (one side, flipped or symmetric; rounded corners, taper, twist), Revolve, Box, Cylinder (both with edge fillets), Sphere, Cone, Torus, STL import. |
 | **Operations** | New body / Join / Cut / Intersect on every feature. Extruding a face sketch automatically joins, or cuts when you extrude inward. |
 | **Modify** | Move/Rotate with an on-screen gizmo, Scale, Combine (join/cut/intersect bodies), Mirror, Linear and Circular patterns, Hollow (shell). |
-| **Text** | A Text tool in Sketch (**A**): type words, pick a size and bold, click to place. Extrude for raised letters or draw text inside a shape to engrave it. |
+| **3D text** | Click **Text** in the toolbar, type your words and set letter height and thickness to get solid 3D letters. **Join** them onto a part for raised lettering or **Cut** to engrave; drag the arrows to resize. There's also a Text tool inside Sketch (**A**) for text on sketched profiles. |
 | **Sign in & cloud save** | Create an account with email and password, click **Cloud** to save, and reopen your designs from the start screen on any computer, in the app or the website. Powered by Supabase. |
 | **Drag to resize** | Double-click a shape (or click its timeline step) and drag the blue arrows to change its width, depth, height, radius or extrude distance live. Hold ⇧ for 0.1 mm steps or ⌥ for no snapping. |
 | **Parametric** | Every feature stays editable on the timeline. Fields take expressions such as `width/2 + 3` or `1in`, using named **Parameters**. Suppress, reorder, rename or delete steps. |

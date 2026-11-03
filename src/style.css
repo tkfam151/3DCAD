@@ -59,8 +59,8 @@ body.mac #toolbar button { -webkit-app-region: no-drag; }
 #loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 15px; }
 
 #panel { width: 0; overflow: hidden; background: var(--bg2); border-left: 1px solid var(--line); transition: width .15s; display: flex; flex-direction: column; }
-#panel.open { width: 300px; overflow-y: auto; }
-#panel > * { min-width: 300px; }
+#panel.open { width: 300px; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; }
+#panel > * { min-width: 0; }
 
 /* ---------- browser ---------- */
 .br-doc { display: flex; align-items: center; gap: 6px; font-weight: 600; padding: 4px 12px 10px; border-bottom: 1px solid var(--line); }

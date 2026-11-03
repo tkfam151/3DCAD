@@ -57,8 +57,8 @@ const KB = [
   },
   {
     topic: ['words'],
-    a: 'In a sketch, pick the <b>Text</b> tool (<b>A</b>), type your words and size, and click where they should start. Extrude the sketch for raised letters. To engrave, draw the text <b>inside</b> a rectangle in the same sketch, or sketch it on a face and extrude with a negative distance.',
-    actions: [{ label: 'Start a sketch', cmd: 'sketch' }],
+    a: 'Click <b>Text</b> in the toolbar, type your words, and set the <b>letter height</b> and <b>thickness</b>: you get 3D letters right away. Put them on a part with <b>Join</b> (raised letters) or <b>Cut</b> (engraved), and set the position so they sit on its surface. For text on a sketch, use the sketch’s Text tool (<b>A</b>).',
+    actions: [{ label: 'Add 3D text', cmd: 'text' }],
   },
   {
     topic: ['cloud'],

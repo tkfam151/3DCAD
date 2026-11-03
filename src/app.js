@@ -25,6 +25,7 @@ const CHEERS = {
   sphere: ['So round!'],
   cone: ['Pointy!'],
   torus: ['Mmm, donut.'],
+  text: ['Nice lettering!', 'Looking good in 3D!'],
   move: ['Moved it!'],
   combine: ['Combined — teamwork!'],
   mirror: ['Mirror, mirror… nice symmetry.'],
@@ -312,7 +313,7 @@ export class App {
       { title: 'Create', items: [
         ['sketch', 'Sketch', 'sketch', 'S'], ['extrude', 'Extrude', 'extrude', 'E'], ['revolve', 'Revolve', 'revolve'],
         ['box', 'Box', 'box', 'B'], ['cylinder', 'Cylinder', 'cylinder', 'Y'], ['sphere', 'Sphere', 'sphere'],
-        ['cone', 'Cone', 'cone'], ['torus', 'Torus', 'torus'],
+        ['cone', 'Cone', 'cone'], ['torus', 'Torus', 'torus'], ['text', 'Text', 'text'],
       ] },
       { title: 'Modify', items: [
         ['move', 'Move', 'move', 'M'], ['combine', 'Combine', 'combine', 'J'], ['mirror', 'Mirror', 'mirror'],
@@ -689,6 +690,19 @@ export class App {
         sel.value = f.params[field.key] ?? field.default;
         sel.onchange = () => update(sel.value, true);
         row.appendChild(sel);
+        break;
+      }
+      case 'string': {
+        const inp = document.createElement('input');
+        inp.type = 'text';
+        inp.dataset.key = field.key;
+        inp.value = f.params[field.key] ?? '';
+        inp.oninput = () => update(inp.value);
+        inp.onkeydown = (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); this.flushRegen(); this.commitEdit(); }
+          if (e.key === 'Escape') { e.preventDefault(); this.cancelEdit(); }
+        };
+        row.appendChild(inp);
         break;
       }
       case 'bool': {

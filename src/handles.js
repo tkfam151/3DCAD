@@ -70,6 +70,14 @@ export function featureHandles(f, result) {
       add('minorRadius', 'Tube radius', [R, 0, r], [0, 0, 1], 1, 0.01, at);
       break;
     }
+    case 'text': {
+      const sz = num('size'), d = num('depth');
+      if ([sz, d].includes(null)) break;
+      const at = placed();
+      add('size', 'Letter height', [0, sz, d / 2], [0, 1, 0], 1, 0.5, at);
+      add('depth', 'Thickness', [0, sz / 2, d], [0, 0, 1], 1, 0.1, at);
+      break;
+    }
     case 'extrude': {
       const sk = result?.sketches?.find((s) => s.id === P.sketch);
       const d = num('distance');

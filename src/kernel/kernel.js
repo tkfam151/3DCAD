@@ -424,6 +424,21 @@ export function regenerate(doc, wasm) {
       applyOp(f, place(f, T(Manifold.cylinder(h, r, rt, segments))));
     },
 
+    text(f) {
+      const words = String(f.params.text ?? '').trim();
+      if (!words) throw new Error('Type some text');
+      const size = num(f, 'size'), depth = num(f, 'depth');
+      if (!(size > 0) || !(depth > 0)) throw new Error('Letter height and thickness must be positive');
+      const contours = textContours({ type: 'text', x: 0, y: 0, text: words, size, font: f.params.bold ? 'bold' : 'regular' }, segments);
+      if (!contours.length) throw new Error(fonts.size ? 'These characters aren’t in the font' : 'Font not loaded');
+      let cs = T(new CrossSection(contours, 'EvenOdd'));
+      const b = cs.bounds();
+      const align = f.params.align || 'center';
+      const dx = align === 'left' ? -b.min[0] : align === 'right' ? -b.max[0] : -(b.min[0] + b.max[0]) / 2;
+      cs = T(cs.translate([dx, -b.min[1]]));
+      applyOp(f, place(f, T(cs.extrude(depth))));
+    },
+
     torus(f) {
       applyOp(f, place(f, torus(num(f, 'majorRadius'), num(f, 'minorRadius'))));
     },
