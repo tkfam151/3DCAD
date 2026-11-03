@@ -8,6 +8,7 @@ const SYN = {
   draw: 'sketch', drawing: 'sketch', '2d': 'sketch', profile: 'sketch',
   pull: 'extrude', push: 'extrude', thicken: 'extrude', height: 'extrude',
   spin: 'revolve', lathe: 'revolve', turn: 'revolve',
+  resize: 'resize', bigger: 'resize', smaller: 'resize', taller: 'resize', wider: 'resize', longer: 'resize', stretch: 'resize', arrow: 'arrow', arrows: 'arrow',
   rotate: 'move', position: 'move', place: 'move', drag: 'move', translate: 'move',
   join: 'combine', merge: 'combine', union: 'combine', boolean: 'combine', intersect: 'combine', glue: 'combine',
   array: 'pattern', repeat: 'pattern', copies: 'pattern', duplicate: 'pattern', copy: 'pattern',
@@ -51,6 +52,10 @@ const KB = [
     topic: ['sketch'], also: ['rectangle', 'circle', 'line'],
     a: 'Press <b>S</b> (Sketch), then click an origin plane or any flat face of a body. Draw with <b>Line</b>, <b>Rectangle</b>, <b>Circle</b>, <b>Polygon</b> or <b>Slot</b>. While drawing, type a number for an exact size (for a rectangle, <code>40,20</code>). Press <b>Enter</b> to finish.',
     actions: [{ label: 'Start a sketch', cmd: 'sketch' }],
+  },
+  {
+    topic: ['resize', 'arrow'],
+    a: '<b>Double‑click</b> a shape (or click its step on the timeline) and drag the <b>blue arrows</b> to resize it. Hold <b>⇧</b> for 0.1 mm steps or <b>⌥</b> to turn off snapping. You can also type exact numbers in the panel.',
   },
   {
     topic: ['extrude'],

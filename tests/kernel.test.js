@@ -175,3 +175,24 @@ test('watertight imported mesh becomes a solid', async () => {
   assert.deepEqual(r.errors, {});
   close(r.bodies[0].volume, 1000);
 });
+
+test('drag arrows sit on the faces they resize', async () => {
+  const { featureHandles } = await import('../src/handles.js');
+  const box = { id: 'b', type: 'box', params: { width: '20', depth: '10', height: '6', x: '5', y: '0', z: '0', rx: '0', ry: '0', rz: '90' } };
+  const hs = featureHandles(box, { scope: {} });
+  const w = hs.find((h) => h.key === 'width');
+  // rotated 90° about Z: the +X face moves to +Y, offset by x = 5
+  close(w.origin[0], 5, 1e-6); close(w.origin[1], 10, 1e-6); close(w.origin[2], 3, 1e-6);
+  close(w.dir[1], 1, 1e-6);
+  assert.equal(w.factor, 2);
+  assert.equal(hs.find((h) => h.key === 'height').origin[2], 6);
+
+  const r = regenerate(doc([
+    { id: 's', type: 'sketch', params: { plane: 'XZ', offset: '0' }, shapes: [{ type: 'rect', x: 0, y: 0, w: 10, h: 4 }] },
+    { id: 'e', type: 'extrude', params: { sketch: 's', distance: '7', direction: 'one', operation: 'new' } },
+  ]), wasm);
+  const [ex] = featureHandles({ id: 'e', type: 'extrude', params: { sketch: 's', distance: '7', direction: 'one' } }, r);
+  // XZ sketch normal is -Y; arrow sits at the far face of the extrusion
+  close(ex.origin[0], 5, 1e-6); close(ex.origin[1], -7, 1e-6); close(ex.origin[2], 2, 1e-6);
+  close(ex.dir[1], -1, 1e-6);
+});

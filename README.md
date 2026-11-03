@@ -14,6 +14,7 @@ sketch → extrude/revolve → modify, with every step recorded on an editable *
 | **Solid features** | Extrude (one side, flipped or symmetric; rounded corners, taper, twist), Revolve, Box, Cylinder (both with edge fillets), Sphere, Cone, Torus, STL import. |
 | **Operations** | New body / Join / Cut / Intersect on every feature. Extruding a face sketch automatically joins, or cuts when you extrude inward. |
 | **Modify** | Move/Rotate with an on-screen gizmo, Scale, Combine (join/cut/intersect bodies), Mirror, Linear and Circular patterns, Hollow (shell). |
+| **Drag to resize** | Double-click a shape (or click its timeline step) and drag the blue arrows to change its width, depth, height, radius or extrude distance live. Hold ⇧ for 0.1 mm steps or ⌥ for no snapping. |
 | **Parametric** | Every feature stays editable on the timeline. Fields take expressions such as `width/2 + 3` or `1in`, using named **Parameters**. Suppress, reorder, rename or delete steps. |
 | **Inspect** | Measure distances, see size, volume, surface area and estimated PLA mass. |
 | **Files** | Save/open `.ocad` designs and open/import **STL** and **OBJ** models (double-click in Finder works), export **STL** and **OBJ** for 3D printing, save PNG images. Models that aren't watertight still open for reference. |

@@ -200,6 +200,7 @@ export class Viewport {
     this.keyLight.position.copy(camDir).add(new THREE.Vector3(0.3, 0.2, 0.6)).normalize();
     this.renderer.render(this.scene, this.camera);
     this.updateLabels();
+    this.updateHandleScale();
     if (this.onRender) this.onRender();
   }
 
@@ -447,6 +448,154 @@ export class Viewport {
     this.planePicker = null;
     this.pickerPlanes = null;
     this.requestRender();
+  }
+
+  // ---------- dimension arrows (drag to resize) ----------
+
+  /**
+   * Show draggable arrows. Each handle: { key, origin:[x,y,z], dir:[x,y,z], value, factor, label, min }.
+   * Dragging along `dir` changes value by (distance moved × factor).
+   */
+  setHandles(handles, { onDrag, onEnd } = {}) {
+    if (this._handleDrag) return; // keep the arrows steady while one is being dragged
+    this.clearHandles();
+    if (!handles?.length) return;
+    this._handleCbs = { onDrag, onEnd };
+    this.handleGroup = new THREE.Group();
+    this.handleMeshes = [];
+    for (const h of handles) {
+      const g = new THREE.Group();
+      const dir = new THREE.Vector3(...h.dir).normalize();
+      g.position.set(...h.origin);
+      g.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+      const mat = new THREE.MeshBasicMaterial({ color: 0x3b8cff, depthTest: false, transparent: true, opacity: 0.95 });
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 16, 10), mat);
+      shaft.position.y = 10;
+      const head = new THREE.Mesh(new THREE.ConeGeometry(3.2, 8, 16), mat);
+      head.position.y = 21;
+      const dot = new THREE.Mesh(new THREE.SphereGeometry(2, 12, 8), mat);
+      // a fat invisible target that is easy to grab
+      const hit = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 28, 8), new THREE.MeshBasicMaterial({ visible: false }));
+      hit.position.y = 13;
+      for (const m of [shaft, head, dot]) m.renderOrder = 20;
+      g.add(shaft, head, dot, hit);
+      g.userData = { handle: h, mat, dir };
+      hit.userData.handleGroup = g;
+      this.handleMeshes.push(hit);
+      this.handleGroup.add(g);
+    }
+    this.overlayGroup.add(this.handleGroup);
+    if (!this._handleEvents) this.bindHandleEvents();
+    this.updateHandleScale();
+    this.requestRender();
+  }
+
+  clearHandles() {
+    if (this.handleGroup) {
+      this.overlayGroup.remove(this.handleGroup);
+      this.handleGroup.traverse((o) => { o.geometry?.dispose(); o.material?.dispose?.(); });
+    }
+    this.handleGroup = null;
+    this.handleMeshes = [];
+    if (this._handleLabel) { this.removeLabel(this._handleLabel); this._handleLabel = null; }
+    this.requestRender();
+  }
+
+  /** Keep arrows the same size on screen at any zoom. */
+  updateHandleScale() {
+    if (!this.handleGroup) return;
+    for (const g of this.handleGroup.children) {
+      const d = this.camera.isOrthographicCamera
+        ? (this.camera.top - this.camera.bottom) / this.camera.zoom
+        : g.position.distanceTo(this.camera.position) * 2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
+      const s = (d / (this.container.clientHeight || 1)) * 2.4;
+      g.scale.setScalar(s);
+    }
+  }
+
+  pickHandle(ev) {
+    if (!this.handleMeshes?.length) return null;
+    this.setPointer(ev);
+    this.handleGroup.updateMatrixWorld(true);
+    const hit = this.raycaster.intersectObjects(this.handleMeshes, false)[0];
+    return hit ? hit.object.userData.handleGroup : null;
+  }
+
+  /** Parameter t of the point on the handle's line closest to the pointer ray. */
+  lineParam(ev, origin, dir) {
+    this.setPointer(ev);
+    const r = this.raycaster.ray;
+    const w0 = origin.clone().sub(r.origin);
+    const a = dir.dot(dir), b = dir.dot(r.direction), c = r.direction.dot(r.direction);
+    const d = dir.dot(w0), e = r.direction.dot(w0);
+    const den = a * c - b * b;
+    if (Math.abs(den) < 1e-9) return null; // looking straight down the arrow
+    return (b * e - c * d) / den;
+  }
+
+  bindHandleEvents() {
+    this._handleEvents = true;
+    const dom = this.dom;
+    const highlight = (g, on) => { if (g) g.userData.mat.color.set(on ? 0xffb02e : 0x3b8cff); this.requestRender(); };
+    dom.addEventListener('pointerdown', (ev) => {
+      if (ev.button !== 0) return;
+      const g = this.pickHandle(ev);
+      if (!g) return;
+      ev.stopImmediatePropagation();
+      ev.preventDefault();
+      dom.setPointerCapture(ev.pointerId);
+      const origin = g.position.clone();
+      const t0 = this.lineParam(ev, origin, g.userData.dir);
+      this._handleDrag = { g, origin, t0: t0 ?? 0, start: g.userData.handle.value, last: g.userData.handle.value };
+      this.controls.enabled = false;
+      highlight(g, true);
+    }, true);
+    dom.addEventListener('pointermove', (ev) => {
+      const drag = this._handleDrag;
+      if (!drag) {
+        if (ev.buttons) return;
+        const g = this.pickHandle(ev);
+        if (g !== this._hoverHandle) { highlight(this._hoverHandle, false); highlight(g, true); this._hoverHandle = g; }
+        if (g) { dom.style.cursor = 'grab'; ev.stopImmediatePropagation(); }
+        return;
+      }
+      ev.stopImmediatePropagation();
+      dom.style.cursor = 'grabbing';
+      const h = drag.g.userData.handle;
+      const t = this.lineParam(ev, drag.origin, drag.g.userData.dir);
+      if (t === null) return;
+      const step = ev.shiftKey ? 0.1 : ev.altKey ? 0 : 1;
+      let v = drag.start + (t - drag.t0) * (h.factor ?? 1);
+      if (step) v = Math.round(v / step) * step;
+      if (h.min !== undefined) v = Math.max(h.min, v);
+      v = Math.round(v * 1000) / 1000;
+      // move the arrow along with the face it belongs to
+      drag.g.position.copy(drag.origin).addScaledVector(drag.g.userData.dir, (v - drag.start) / (h.factor || 1));
+      this.showHandleLabel(drag.g.position, `${h.label} ${v}`);
+      if (v !== drag.last) {
+        drag.last = v;
+        this._handleCbs?.onDrag?.(h, v);
+      }
+      this.requestRender();
+    }, true);
+    const end = (ev) => {
+      const drag = this._handleDrag;
+      if (!drag) return;
+      ev.stopImmediatePropagation();
+      this._handleDrag = null;
+      this.controls.enabled = true;
+      dom.style.cursor = '';
+      if (this._handleLabel) { this.removeLabel(this._handleLabel); this._handleLabel = null; }
+      this._handleCbs?.onEnd?.(drag.g.userData.handle, drag.last);
+    };
+    dom.addEventListener('pointerup', end, true);
+    dom.addEventListener('pointercancel', end, true);
+  }
+
+  showHandleLabel(pos, text) {
+    if (!this._handleLabel) this._handleLabel = this.addLabel(pos, text, 'handle');
+    this._handleLabel.pos.copy(pos);
+    this._handleLabel.el.textContent = text;
   }
 
   // ---------- gizmo ----------

@@ -157,6 +157,7 @@ input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; }
 .vb-btn .icon { width: 17px; height: 17px; }
 .label-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .vp-label { position: absolute; left: 0; top: 0; padding: 3px 8px; border-radius: 5px; background: rgba(15,18,22,.85); color: #fff; font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; border: 1px solid rgba(255,255,255,.12); }
+.vp-label.handle { background: #c88512; border-color: #ffb02e; font-weight: 600; }
 .vp-label.measure { background: #c88512; border-color: #ffb02e; font-weight: 600; }
 .vp-label.sketch-hud { background: rgba(30,90,170,.9); border-color: #7cc4ff; }
 .dim-input { position: absolute; width: 110px; z-index: 5; background: #10151b; border: 1px solid var(--accent); border-radius: 5px; padding: 4px 7px; }

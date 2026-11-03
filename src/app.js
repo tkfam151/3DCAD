@@ -14,6 +14,7 @@ import { buildExamples } from './examples.js';
 import { Landing } from './landing.js';
 import { addRecent } from './recents.js';
 import { Mascot } from './mascot.js';
+import { featureHandles } from './handles.js';
 
 const CHEERS = {
   extrude: ['Nice extrude!', 'Look at that — it’s 3D now!', 'Solid work.'],
@@ -242,6 +243,36 @@ export class App {
     this.renderTimeline();
     this.renderStatus();
     if (this.editing?.def?.type === 'move') this.attachMoveGizmo();
+    this.refreshHandles();
+  }
+
+  /** Blue drag arrows for the dimensions of the feature being edited. */
+  refreshHandles() {
+    const ed = this.editing;
+    if (!ed || ed.feature.type === 'move' || this.mode !== 'normal') return this.vp.clearHandles();
+    const f = ed.feature;
+    const handles = featureHandles(f, this.result);
+    this.vp.setHandles(handles, {
+      onDrag: (h, v) => {
+        f.params[h.key] = String(v);
+        if (h.key === 'distance' && ed.autoOp) {
+          const op = (v < 0) !== (f.params.direction === 'reverse') ? 'cut' : 'join';
+          f.params.operation = op;
+          const sel = this.el.panel.querySelector('select[data-key="operation"]');
+          if (sel) sel.value = op;
+        }
+        const inp = this.el.panel.querySelector(`input[data-key="${h.key}"]`);
+        if (inp) { inp.value = String(v); inp.classList.remove('bad'); }
+        if (!this._dragRaf) {
+          this._dragRaf = requestAnimationFrame(() => { this._dragRaf = null; this.regen(); this.updatePanelError(); });
+        }
+      },
+      onEnd: () => {
+        if (this._dragRaf) { cancelAnimationFrame(this._dragRaf); this._dragRaf = null; }
+        this.regen();
+        this.renderPanel();
+      },
+    });
   }
 
   visibleSketchIds() {
@@ -471,6 +502,7 @@ export class App {
     this.editing = { feature: f, isNew, before, def: { ...FEATURES[f.type], type: f.type }, gizmoMode: 'translate' };
     this.renderPanel();
     if (f.type === 'move') this.attachMoveGizmo();
+    this.refreshHandles();
   }
 
   renderPanel() {
@@ -528,6 +560,12 @@ export class App {
       const h = document.createElement('div');
       h.className = 'hint';
       h.textContent = 'Drag the gizmo in the viewport or type exact values. Hold ⇧ while dragging to snap.';
+      P.appendChild(h);
+    }
+    if (featureHandles(f, this.result).length) {
+      const h = document.createElement('div');
+      h.className = 'hint';
+      h.innerHTML = 'Drag the <b style="color:#3b8cff">blue arrows</b> in the view to resize. Hold ⇧ for 0.1 mm steps, ⌥ for no snapping.';
       P.appendChild(h);
     }
     if (def.fields.some((x) => x.type === 'body' || x.type === 'bodies')) {
@@ -593,6 +631,7 @@ export class App {
         wrap.className = 'num-wrap';
         const inp = document.createElement('input');
         inp.type = 'text';
+        inp.dataset.key = field.key;
         inp.spellcheck = false;
         inp.value = f.params[field.key] ?? '';
         const val = document.createElement('span');
@@ -723,6 +762,7 @@ export class App {
     this.flushRegen();
     this.editing = null;
     this.vp.detachGizmo();
+    this.vp.clearHandles();
     this.renderPanel();
     this.commit(ed.before);
     if (!this.result.errors[ed.feature.id] && CHEERS[ed.feature.type]) this.mascot.say(pick(CHEERS[ed.feature.type]), 'cheer', 3500);
@@ -734,13 +774,14 @@ export class App {
     clearTimeout(this._regenT);
     this.editing = null;
     this.vp.detachGizmo();
+    this.vp.clearHandles();
     this.doc = JSON.parse(ed.before);
     this.renderPanel();
     this.regen();
   }
 
   closePanel(silent) {
-    if (this.editing) { if (silent) { this.editing = null; this.vp.detachGizmo(); } else this.commitEdit(); }
+    if (this.editing) { if (silent) { this.editing = null; this.vp.detachGizmo(); this.vp.clearHandles(); } else this.commitEdit(); }
     this.renderPanel();
   }
 
@@ -937,6 +978,13 @@ export class App {
       if (this.mode === 'measure') { if (hit) this.measureClick(hit); return; }
       if (this.editing && hit && this.pickIntoEditor(hit.bodyId)) return;
       this.selectBody(hit?.bodyId || null, e.shiftKey || e.metaKey);
+    });
+    dom.addEventListener('dblclick', (e) => {
+      if (this.mode !== 'normal') return;
+      const hit = this.vp.pickBody(e);
+      const b = hit && this.result.bodies.find((x) => x.id === hit.bodyId);
+      const f = b && this.featureById(b.creator);
+      if (f && f.type !== 'importMesh') this.editFeature(f.id);
     });
     dom.addEventListener('contextmenu', (e) => e.preventDefault());
     dom.addEventListener('pointerleave', () => this.vp.setHover(null));

@@ -16,6 +16,8 @@ test('Pip answers how-to questions', () => {
   has('can it open STEP files from fusion', /can't read STEP/);
   has('add threads to a bolt', /can't do that one yet/);
   has('mac app keeps bouncing', /Terminal fix/);
+  has('how do I make it bigger', /blue arrows/);
+  has('edit the shape with arrows', /blue arrows/);
   has('what is the meaning of life', /not sure/);
   assert.equal(answer('how do I make a hole').actions[0].cmd, 'sketch');
 });
