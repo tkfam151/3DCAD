@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if page.title %}{{ page.title }} · {% endif %}{{ site.title }}</title>
+  <meta name="description" content="{{ site.description | strip }}">
+  <meta property="og:title" content="{{ site.title }}">
+  <meta property="og:description" content="{{ site.description | strip }}">
+  <meta property="og:image" content="{{ site.url }}{{ site.baseurl }}/assets/img/editor.jpg">
+  <link rel="icon" href="{{ site.baseurl }}/assets/img/icon.png">
+  <link rel="stylesheet" href="{{ site.baseurl }}/assets/css/site.css">
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="{{ site.baseurl }}/"><img src="{{ site.baseurl }}/assets/img/icon.png" alt="" width="28" height="28"> {{ site.title }}</a>
+      <nav>
+        <a href="#features">Features</a>
+        <a href="#download">Download</a>
+        <a href="#help">Help</a>
+        <a href="{{ site.repo }}">GitHub</a>
+        <a class="btn small" href="{{ site.baseurl }}/app/">Open in browser</a>
+      </nav>
+    </div>
+  </header>
+  <main>
+    {{ content }}
+  </main>
+  <footer class="foot">
+    <div class="wrap">
+      <p>{{ site.title }} {{ site.version }} · Free and open source (MIT) · <a href="{{ site.repo }}">Source on GitHub</a></p>
+      <p class="muted">Pip's look is borrowed from the pixel-art mascot of Claude Code. OpenCAD Studio is an independent project, not made by or affiliated with Anthropic.</p>
+    </div>
+  </footer>
+</body>
+</html>

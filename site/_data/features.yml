@@ -1,0 +1,18 @@
+- title: Sketch anywhere
+  icon: sketch
+  text: Draw lines, rectangles, circles, polygons and slots on any plane or straight onto a flat face. Type exact sizes while you draw.
+- title: Extrude & revolve
+  icon: extrude
+  text: Pull sketches into solids, cut pockets with a negative distance, or spin a profile into vases, knobs and wheels.
+- title: Edit every step later
+  icon: timeline
+  text: Each step lands on a timeline. Click any one to change its numbers and the whole model rebuilds.
+- title: Parameters & math
+  icon: params
+  text: "Name your sizes once and type expressions like width/2 + 3 or 1in in any field."
+- title: Modify tools
+  icon: move
+  text: Move and rotate with a gizmo, combine bodies, mirror, make linear or circular patterns, and hollow parts out.
+- title: Made for 3D printing
+  icon: export
+  text: Every solid is watertight. Export STL or OBJ, measure parts and see the estimated PLA weight.

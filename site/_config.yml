@@ -1,0 +1,13 @@
+title: OpenCAD Studio
+tagline: Free parametric 3D design
+description: >-
+  A free, open-source parametric 3D CAD app. Sketch, extrude, revolve and edit every step later.
+  Runs on Mac (M chips), Windows, or right in your browser.
+url: "https://tkfam151.github.io"
+baseurl: "/3DCAD"
+version: "1.0.0"
+repo: "https://github.com/tkfam151/3DCAD"
+markdown: kramdown
+exclude:
+  - Gemfile
+  - Gemfile.lock

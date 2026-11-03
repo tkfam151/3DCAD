@@ -101,6 +101,47 @@ jobs:
           path: release/*.exe
           if-no-files-found: error
 
+  # Website (Jekyll, from site/) with the browser version of the app at /app/.
+  # One-time setup: Settings → Pages → Build and deployment → Source: GitHub Actions.
+  pages:
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - name: Build the web app
+        run: npm run build
+      - uses: actions/configure-pages@v5
+      - name: Build the website with Jekyll
+        uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./site
+          destination: ./_site
+      - name: Put the web app at /app/
+        run: sudo cp -r dist _site/app
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4
+
   # Drafts are only visible to people with write access to the repo.
   # Publish one from the Releases page when you want it public.
   release:

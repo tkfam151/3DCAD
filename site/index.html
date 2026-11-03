@@ -1,0 +1,101 @@
+---
+layout: default
+---
+{% assign dl = site.repo | append: "/releases/latest/download/" %}
+{% capture pip_svg %}<svg class="pip-px" viewBox="-14 -14 438 372" shape-rendering="crispEdges" aria-hidden="true"><g fill="#d97757"><rect x="35" y="230" width="40" height="95"/><rect x="110" y="230" width="40" height="95"/><rect x="260" y="230" width="40" height="95"/><rect x="335" y="230" width="40" height="95"/><rect x="0" y="80" width="40" height="80"/><rect x="370" y="80" width="40" height="80"/><rect x="35" y="0" width="340" height="240"/></g><g fill="#000"><rect x="75" y="80" width="40" height="40"/><rect x="295" y="80" width="40" height="40"/></g></svg>{% endcapture %}
+
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <p class="eyebrow">Free · Open source · v{{ site.version }}</p>
+      <h1>3D design without the subscription.</h1>
+      <p class="lead">OpenCAD Studio is a parametric CAD app for makers. Sketch, extrude, revolve and combine parts, then change any step later. Export STL for your 3D printer.</p>
+      <div class="cta">
+        <a class="btn primary" href="{{ site.baseurl }}/app/">Open in your browser</a>
+        <a class="btn" href="#download">Download for Mac or Windows</a>
+      </div>
+      <p class="muted small">The browser version needs no install or account. Your designs save to your Downloads folder.</p>
+    </div>
+    <figure class="hero-shot">
+      <img src="{{ site.baseurl }}/assets/img/editor.jpg" alt="OpenCAD Studio editor showing an electronics enclosure with a lid, the timeline and Pip the helper" width="1440" height="880">
+    </figure>
+  </div>
+</section>
+
+<section id="features" class="section">
+  <div class="wrap">
+    <h2>Everything you need to model printable parts</h2>
+    <div class="features">
+      {% for f in site.data.features %}
+      <article class="feature">
+        <span class="ficon ficon-{{ f.icon }}" aria-hidden="true"></span>
+        <h3>{{ f.title }}</h3>
+        <p>{{ f.text }}</p>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="section pip-section">
+  <div class="wrap pip-grid">
+    <div class="pip-art">{{ pip_svg }}</div>
+    <div>
+      <h2>Meet Pip, your helper</h2>
+      <p>Pip lives in the corner of the app. Click Pip and ask things like <em>“how do I make a hole?”</em>, <em>“what's wrong?”</em> or <em>“how big is it?”</em>. You get an answer and a button that does the job for you.</p>
+      <p>Pip cheers when a step works, warns you about errors and naps when you're away. Press <kbd>H</kbd> to hide or bring back Pip. It works offline, with no account needed.</p>
+    </div>
+    <img class="pip-shot" src="{{ site.baseurl }}/assets/img/pip.jpg" alt="Pip answering “how big is it?” with the size, volume and PLA weight of the part" width="560" height="360">
+  </div>
+</section>
+
+<section id="download" class="section">
+  <div class="wrap">
+    <h2>Download</h2>
+    <div class="downloads">
+      <a class="dl" href="{{ dl }}OpenCAD.Studio-{{ site.version }}-arm64.dmg">
+        <strong>Mac</strong>
+        <span>Apple M1 / M2 / M3 / M4 · .dmg</span>
+      </a>
+      <a class="dl" href="{{ dl }}OpenCAD.Studio.Setup.{{ site.version }}.exe">
+        <strong>Windows 10 / 11</strong>
+        <span>64-bit installer · .exe</span>
+      </a>
+      <a class="dl" href="{{ site.baseurl }}/app/">
+        <strong>Browser</strong>
+        <span>Chrome, Edge, Safari, Firefox · no install</span>
+      </a>
+    </div>
+    <p class="muted small">All releases: <a href="{{ site.repo }}/releases">github.com/tkfam151/3DCAD/releases</a></p>
+  </div>
+</section>
+
+<section id="help" class="section">
+  <div class="wrap narrow">
+    <h2>Help, the app won't open</h2>
+    <details open>
+      <summary>Mac: the icon bounces in the Dock, or macOS says the app is blocked</summary>
+      <p>The app isn't notarized by Apple, which needs a paid developer account, so newer macOS versions block it. First try <b>System Settings → Privacy &amp; Security → Open Anyway</b>. If there's no button, open <b>Terminal</b> and paste this line:</p>
+      <pre><code>pkill -9 -f "OpenCAD Studio"; mkdir -p ~/Applications; rm -rf ~/Applications/"OpenCAD Studio.app"; ditto --noextattr --noqtn "/Applications/OpenCAD Studio.app" ~/Applications/"OpenCAD Studio.app" &amp;&amp; codesign --force --deep --sign - ~/Applications/"OpenCAD Studio.app" &amp;&amp; open ~/Applications/"OpenCAD Studio.app"</code></pre>
+      <button class="btn small copy" type="button" data-copy>Copy command</button>
+      <p>It makes a copy in your personal Applications folder, signs it on your Mac and opens it. If Terminal says <i>Operation not permitted</i>, turn on Terminal under <b>System Settings → Privacy &amp; Security → App Management</b> and try again. You can also skip all of this and <a href="{{ site.baseurl }}/app/">use the browser version</a>.</p>
+    </details>
+    <details>
+      <summary>Windows: “Windows protected your PC”</summary>
+      <p>Click <b>More info</b>, then <b>Run anyway</b>. The installer isn't code-signed yet.</p>
+    </details>
+    <details>
+      <summary>Can it open Fusion, STEP or IGES files?</summary>
+      <p>Not yet. Export an <b>STL</b> or <b>OBJ</b> from the other program and open that. OpenCAD opens and edits those.</p>
+    </details>
+  </div>
+</section>
+
+<script>
+  document.querySelectorAll('[data-copy]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var code = b.previousElementSibling.textContent;
+      navigator.clipboard.writeText(code).then(function () { b.textContent = 'Copied!'; setTimeout(function () { b.textContent = 'Copy command'; }, 1600); });
+    });
+  });
+</script>

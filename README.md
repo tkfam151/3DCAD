@@ -22,6 +22,12 @@ sketch → extrude/revolve → modify, with every step recorded on an editable *
 
 Geometry comes from the [Manifold](https://github.com/elalish/manifold) kernel, which guarantees watertight solids, so your exports are always printable. Rendering uses [three.js](https://threejs.org).
 
+## Use it in your browser
+
+**https://tkfam151.github.io/3DCAD/** is the project website. Click **Open in browser** to use the full app
+with nothing to install. It works in Chrome, Edge, Safari and Firefox, and saves designs and exports to your
+Downloads folder.
+
 ## Install
 
 Download the installer for your computer from the latest release:
@@ -150,6 +156,7 @@ src/sketcher.js  interactive 2D sketch editor
 src/app.js       UI: toolbar, browser, timeline, property panels, files
 src/landing.js   start screen: new design, open, recents, templates
 tests/           kernel tests (node --test)
+site/            project website (Jekyll); the web app is added at /app/ when it's published
 ```
 
 ## Credits
