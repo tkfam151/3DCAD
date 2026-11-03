@@ -24,13 +24,19 @@ Geometry comes from the [Manifold](https://github.com/elalish/manifold) kernel, 
 
 ## Install
 
-Open the **Actions** tab of this repo, click the latest **Build apps** run, and download the
+Download the installer for your computer from the latest release:
+**https://github.com/tkfam151/3DCAD/releases/latest**
+
+- Mac (M chips): `OpenCAD.Studio-…-arm64.dmg`
+- Windows 10/11: `OpenCAD.Studio.Setup.….exe`
+
+Newer test builds are on the **Actions** tab: open the latest **Build apps** run and download the
 artifact for your computer (you need to be signed in to GitHub).
 
 ### Mac
 
-1. Download `OpenCAD-Studio-macOS` and unzip it.
-2. Open `OpenCAD Studio-…-arm64.dmg`. (Macs with Apple M chips only: M1/M2/M3/M4…; Intel Macs aren't supported.)
+1. Download the `.dmg` from the release (or `OpenCAD-Studio-macOS` from Actions, then unzip it).
+2. Open the `-arm64.dmg`. (Macs with Apple M chips only: M1/M2/M3/M4…; Intel Macs aren't supported.)
 3. Drag **OpenCAD Studio** into **Applications**.
 4. Open the app. The first time, macOS will probably block it, because it isn't notarized by Apple
    (that requires a paid Apple Developer account). Follow the steps below.
@@ -78,7 +84,7 @@ you open an issue.
 
 ### Windows 10/11 (64-bit)
 
-1. Download `OpenCAD-Studio-Windows`, unzip it and run `OpenCAD Studio Setup ….exe`.
+1. Download the Setup `.exe` from the release (or `OpenCAD-Studio-Windows` from Actions, then unzip it) and run it.
 2. The installer isn't code-signed, so Windows may say "Windows protected your PC".
    Click **More info → Run anyway**.
 3. Start **OpenCAD Studio** from the Start menu or the desktop shortcut.

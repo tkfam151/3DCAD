@@ -11,6 +11,10 @@ on:
         description: Create a private draft release with the Mac and Windows installers
         type: boolean
         default: false
+      publish_release:
+        description: Publish a public release with the Mac and Windows installers
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -100,7 +104,7 @@ jobs:
   # Drafts are only visible to people with write access to the repo.
   # Publish one from the Releases page when you want it public.
   release:
-    if: startsWith(github.ref, 'refs/tags/v') || inputs.draft_release
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.draft_release || inputs.publish_release
     needs: [mac, windows]
     runs-on: ubuntu-latest
     steps:
@@ -114,7 +118,8 @@ jobs:
       - name: Create draft GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          draft: true
+          draft: ${{ inputs.publish_release != true }}
+          make_latest: ${{ inputs.publish_release == true }}
           tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', steps.ver.outputs.version) }}
           target_commitish: ${{ github.sha }}
           name: OpenCAD Studio ${{ steps.ver.outputs.version }}
