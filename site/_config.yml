@@ -5,7 +5,7 @@ description: >-
   Runs on Mac (M chips), Windows, or right in your browser.
 url: "https://tkfam151.github.io"
 baseurl: "/3DCAD"
-version: "1.0.0"
+version: "1.0.1"
 repo: "https://github.com/tkfam151/3DCAD"
 markdown: kramdown
 exclude:

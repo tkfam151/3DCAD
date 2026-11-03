@@ -1,7 +1,7 @@
 {
   "name": "opencad-studio",
   "productName": "OpenCAD Studio",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A free, parametric 3D CAD app for Mac and Windows",
   "main": "electron/main.cjs",
   "type": "module",
