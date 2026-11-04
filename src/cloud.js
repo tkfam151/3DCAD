@@ -30,6 +30,9 @@ function friendly(error) {
   if (/password should be at least/i.test(m)) return 'Use a password with at least 6 characters.';
   if (/failed to fetch|network/i.test(m)) return 'Can’t reach the cloud. Check your internet connection.';
   if (/rate limit/i.test(m)) return 'Too many tries. Please wait a minute and try again.';
+  if (/schema cache|relation .*designs.* does not exist|PGRST205|42P01/i.test(m) || error?.code === 'PGRST205' || error?.code === '42P01') {
+    return 'The cloud database isn’t set up yet: the “designs” table is missing. The app owner needs to run supabase/migrations/20261103090000_designs.sql in the Supabase SQL Editor (see the README).';
+  }
   return m;
 }
 

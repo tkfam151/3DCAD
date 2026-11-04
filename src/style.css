@@ -382,3 +382,7 @@ body.dragging:not(.on-landing) #drop-hint { display: grid; }
 .auth-submit { justify-content: center; }
 .auth-links { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .auth-links .link-btn { padding: 0; }
+
+.br-doc { cursor: pointer; border-radius: 6px; }
+.br-doc:hover span { text-decoration: underline; text-decoration-color: var(--muted); }
+.br-doc .cloud-badge { width: 15px; height: 15px; color: #a9c7ef; margin-left: auto; }

@@ -1241,7 +1241,9 @@ export class App {
     B.innerHTML = '';
     const doc = document.createElement('div');
     doc.className = 'br-doc';
-    doc.innerHTML = `${icon('folder')} <span>${esc(this.fileName)}</span>`;
+    doc.innerHTML = `${icon('folder')} <span>${esc(this.fileName)}</span>${this.cloudId ? icon('cloud', 'cloud-badge') : ''}`;
+    doc.title = 'Click to rename';
+    doc.onclick = () => this.renameDesign();
     B.appendChild(doc);
 
     const sec = (title, count) => {
@@ -1559,7 +1561,7 @@ export class App {
     if (!cloud.cloudConfigured()) return this.toast('Cloud saving isn’t set up in this version.', 'error');
     if (!this.user) return this.showAuth({ reason: 'Sign in to save your designs to the cloud.', then: () => this.saveToCloud() });
     if (this.editing) this.commitEdit();
-    const name = this.fileName === 'Untitled' && !this.cloudId ? await this.askName() : this.fileName;
+    const name = this.cloudId ? this.fileName : await this.askName(this.fileName === 'Untitled' ? '' : this.fileName);
     if (!name) return;
     try {
       let thumb = null;
@@ -1578,18 +1580,55 @@ export class App {
     }
   }
 
-  askName() {
+  /** Ask for a design name (pre-filled). Resolves to the name, or null if cancelled. */
+  askName(current = '', { title = 'Name your design', action = 'Save to cloud' } = {}) {
     return new Promise((resolve) => {
       let done = false;
       const finish = (v) => { if (!done) { done = true; resolve(v); } };
       const m = this.modal({
-        title: 'Name your design',
-        body: '<input class="prompt-input" id="cloud-name" maxlength="200" placeholder="My part"/>',
-        buttons: [{ label: 'Cancel', action: () => finish(null) }, { label: 'Save', primary: true, action: () => finish(m.querySelector('#cloud-name').value.trim() || 'Untitled') }],
-        onClose: () => finish(null),
+        title,
+        body: `<p class="muted">This is the name you'll see in your cloud designs.</p>
+          <input class="prompt-input" id="cloud-name" maxlength="200" placeholder="e.g. Phone stand" value="${esc(current)}"/>
+          <div class="auth-msg" id="cloud-name-msg" hidden>Please type a name.</div>`,
+        buttons: [],
       });
-      setTimeout(() => m.querySelector('#cloud-name')?.focus(), 20);
+      const inp = m.querySelector('#cloud-name');
+      const msg = m.querySelector('#cloud-name-msg');
+      const foot = m.querySelector('.modal-foot');
+      const close = () => m.closest('.modal-backdrop')?.remove();
+      const ok = () => {
+        const v = inp.value.trim();
+        if (!v) { msg.hidden = false; inp.focus(); return; }
+        close();
+        finish(v);
+      };
+      const cancel = document.createElement('button');
+      cancel.className = 'btn';
+      cancel.textContent = 'Cancel';
+      cancel.onclick = () => { close(); finish(null); };
+      const save = document.createElement('button');
+      save.className = 'btn primary';
+      save.textContent = action;
+      save.onclick = ok;
+      foot.append(cancel, save);
+      m.querySelector('[data-cancel]').onclick = () => { close(); finish(null); };
+      inp.addEventListener('keydown', (e) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') { e.preventDefault(); ok(); }
+        if (e.key === 'Escape') { e.preventDefault(); close(); finish(null); }
+      });
+      setTimeout(() => { inp.focus(); inp.select(); }, 20);
     });
+  }
+
+  /** Rename the open design (click its name in the left panel). */
+  async renameDesign() {
+    const name = await this.askName(this.fileName === 'Untitled' ? '' : this.fileName, { title: 'Rename design', action: 'Rename' });
+    if (!name || name === this.fileName) return;
+    this.fileName = name;
+    this.setDirty(true);
+    this.renderBrowser();
+    if (this.cloudId && this.user) this.saveToCloud();
   }
 
   async openCloudDesign(id) {
