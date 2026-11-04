@@ -213,6 +213,17 @@ function buildMenu() {
         { role: 'toggleDevTools' },
       ],
     },
+    {
+      label: 'Class',
+      submenu: [
+        { label: 'Lessons…', click: () => send('lessons') },
+        { label: 'Print Check…', click: () => send('printCheck') },
+        { label: 'Design Journal…', click: () => send('journal') },
+        { label: 'Hand In (ZIP)…', click: () => send('handIn') },
+        { type: 'separator' },
+        { label: 'My Name & Class…', click: () => send('profile') },
+      ],
+    },
     { role: 'windowMenu' },
     {
       role: 'help',

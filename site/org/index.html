@@ -1,0 +1,40 @@
+---
+layout: default
+title: Schools
+---
+<section class="hero">
+  <div class="wrap narrow">
+    <p class="eyebrow">Schools & organisations</p>
+    <h1>OpenCAD for your school</h1>
+    <p class="lead">Each school gets its own space: the same free app with the school's name, a place for students' cloud designs, lessons, print checks and one-click hand-ins.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <h2>Directory</h2>
+    <div class="orgs">
+      {% for o in site.data.orgs %}
+      <a class="org-card" href="{{ site.baseurl }}/org/{{ o.slug }}/" style="--org: {{ o.color }}">
+        <span class="org-badge">{{ o.short }}</span>
+        <span class="org-text"><strong>{{ o.name }}</strong><span>{{ o.city }}</span></span>
+        <span class="org-go">Open →</span>
+      </a>
+      {% endfor %}
+    </div>
+    <p class="muted small">Want a space for your school? <a href="{{ site.repo }}/issues/new?title=School%20space%20request">Open an issue on GitHub</a> with the school's name.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap narrow">
+    <h2>What students get</h2>
+    <ul class="ticks">
+      <li><b>Print check:</b> will it fit the school printer, will it need supports, how many grams, how long and how much.</li>
+      <li><b>Design journal</b> laid out as the MYP design cycle (A · Inquiring, B · Developing, C · Creating, D · Evaluating), saved with the design.</li>
+      <li><b>Hand in:</b> one ZIP for the teacher with the design, STL, screenshots, journal and print check.</li>
+      <li><b>Lessons</b> with Pip: name keychain, phone stand, box with a lid.</li>
+      <li><b>Cloud designs</b> that follow students between school and home, kept in the school's space.</li>
+    </ul>
+  </div>
+</section>

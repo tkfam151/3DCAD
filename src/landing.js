@@ -3,6 +3,7 @@ import { icon } from './ui/icons.js';
 import { getRecents, removeRecent, clearRecents, timeAgo } from './recents.js';
 import { buildExamples } from './examples.js';
 import * as cloud from './cloud.js';
+import { LESSONS } from './student.js';
 import thumbBracket from './assets/examples/bracket.jpg';
 import thumbEnclosure from './assets/examples/enclosure.jpg';
 import thumbVase from './assets/examples/vase.jpg';
@@ -41,6 +42,7 @@ export class Landing {
   }
 
   render() {
+    const org = this.app.org;
     const recents = getRecents();
     const examples = buildExamples();
     const recovery = this.app.readAutosave();
@@ -48,10 +50,10 @@ export class Landing {
 
     this.el.innerHTML = `
       <div class="ld-top">
-        <div class="ld-brand"><span class="logo">◆</span> OpenCAD Studio</div>
-        <div class="ld-tagline">Free parametric 3D design</div>
+        <div class="ld-brand"><span class="logo">◆</span> OpenCAD Studio${org ? `<span class="org-chip">${esc(org.short)}</span>` : ''}</div>
+        <div class="ld-tagline">${org ? `${icon('school')} ${esc(org.name)}` : 'Free parametric 3D design'}</div>
         ${cloud.cloudConfigured() ? `<div class="ld-account">${this.app.user
-          ? `${icon('user')}<span>${esc(this.app.user.email)}</span><button class="btn small" data-act="signout">Sign out</button>`
+          ? `${icon('user')}<button class="link-btn ld-who" data-act="profile" title="Edit your name and class">${esc(this.app.whoAmI())}</button><button class="btn small" data-act="signout">Sign out</button>`
           : `<button class="btn small" data-act="signin">${icon('user')} Sign in</button>`}</div>` : ''}
       </div>
       <div class="ld-body">
@@ -87,7 +89,7 @@ export class Landing {
             </div>` : ''}
           ${cloud.cloudConfigured() ? `
           <section>
-            <div class="ld-section-head"><h2>${icon('cloud')} Cloud designs</h2></div>
+            <div class="ld-section-head"><h2>${icon('cloud')} ${org ? `${esc(org.short)} cloud designs` : 'Cloud designs'}</h2></div>
             ${this.app.user
               ? `<div class="ld-grid" data-cloud><div class="ld-empty">${icon('cloud')}<span>Loading your designs…</span></div></div>`
               : `<div class="ld-empty">${icon('cloud')}<span><button class="link-btn inline" data-act="signin">Sign in</button> to save designs to the cloud and open them on any computer.</span></div>`}
@@ -99,6 +101,13 @@ export class Landing {
             </div>
             ${recents.length ? `<div class="ld-grid">${recents.map((r) => this.recentCard(r)).join('')}</div>`
               : `<div class="ld-empty">${icon('folder')}<span>Designs you open or save will show up here.</span></div>`}
+          </section>
+          <section>
+            <div class="ld-section-head"><h2>${icon('lesson')} Lessons</h2><span class="muted small">Step-by-step projects with Pip</span></div>
+            <div class="ld-grid ld-lessons">${LESSONS.map((l) => `
+              <button class="ld-card ld-lesson" data-lesson="${l.id}">
+                <div class="ld-meta"><b>${esc(l.title)}</b><span class="ld-level">${esc(l.level)}</span><span>${esc(l.summary)}</span></div>
+              </button>`).join('')}</div>
           </section>
           <section>
             <div class="ld-section-head"><h2>Start from a template</h2></div>
@@ -126,6 +135,7 @@ export class Landing {
         this.action(b.dataset.act);
       });
     });
+    this.el.querySelectorAll('[data-lesson]').forEach((b) => { b.onclick = () => this.app.startLesson(b.dataset.lesson); });
     this.el.querySelectorAll('[data-example]').forEach((b) => {
       b.onclick = () => {
         const x = examples[Number(b.dataset.example)];
@@ -151,7 +161,7 @@ export class Landing {
     if (!grid) return;
     let rows;
     try {
-      rows = await cloud.listDesigns();
+      rows = await cloud.listDesigns(this.app.org?.slug || null);
     } catch (e) {
       grid.innerHTML = `<div class="ld-empty">${icon('warn')}<span>Couldn’t load your cloud designs: ${esc(e.message)}</span></div>`;
       return;
@@ -204,6 +214,7 @@ export class Landing {
     else if (act === 'discard-recovery') { a.discardAutosave(); this.render(); }
     else if (act === 'clear-recents') { clearRecents(); this.render(); }
     else if (act === 'signin') a.showAuth();
+    else if (act === 'profile') a.editProfile();
     else if (act === 'signout') a.doSignOut();
     else if (act === 'show-pip') { a.mascot.setHidden(false); this.render(); }
   }

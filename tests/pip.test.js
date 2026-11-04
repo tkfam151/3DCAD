@@ -22,6 +22,11 @@ test('Pip answers how-to questions', () => {
   has('engrave my name', /engrave/);
   has('how do I save to the cloud', /Cloud/);
   has('sign in', /Sign in/);
+  has('will it need supports', /Print check/);
+  has('how long will it take to print', /Print check/);
+  has('how do I submit to my teacher', /Hand in/);
+  has('where do I write my reflection', /Journal/);
+  has('show me a tutorial', /Lesson/);
   has('what is the meaning of life', /not sure/);
   assert.equal(answer('how do I make a hole').actions[0].cmd, 'sketch');
 });

@@ -769,6 +769,44 @@ export class Viewport {
   addOverlay(obj) { this.overlayGroup.add(obj); this.requestRender(); }
   removeOverlay(obj) { this.overlayGroup.remove(obj); this.requestRender(); }
 
+  /** PNG of the model from a standard view (iso/front/top/right), without moving the user's camera. */
+  captureView(name, w = 1280, h = 800) {
+    const cam = this.perspCam;
+    const saved = { pos: cam.position.clone(), up: cam.up.clone(), quat: cam.quaternion.clone(), aspect: cam.aspect, active: this.camera };
+    const gridWas = this.gridGroup.visible;
+    const handlesWas = this.handleGroup?.visible;
+    const [d, up] = this.viewDirection(name);
+    const box = this.sceneBounds();
+    const sphere = box.getBoundingSphere(new THREE.Sphere());
+    const fov = THREE.MathUtils.degToRad(cam.fov);
+    cam.aspect = w / h;
+    const dist = (Math.max(sphere.radius, 5) * 1.15) / Math.sin(Math.min(fov, fov * cam.aspect) / 2);
+    cam.up.set(...up);
+    cam.position.copy(sphere.center).addScaledVector(new THREE.Vector3(...d).normalize(), dist);
+    cam.lookAt(sphere.center);
+    cam.updateProjectionMatrix();
+    this.gridGroup.visible = false;
+    if (this.handleGroup) this.handleGroup.visible = false;
+    const size = this.renderer.getSize(new THREE.Vector2());
+    const ratio = this.renderer.getPixelRatio();
+    this.renderer.setPixelRatio(1);
+    this.renderer.setSize(w, h, false);
+    this.renderer.setClearColor(0x2a313b, 1);
+    this.renderer.render(this.scene, cam);
+    const url = this.dom.toDataURL('image/png');
+    // restore everything
+    this.renderer.setClearColor(0x000000, 0);
+    this.renderer.setPixelRatio(ratio);
+    this.renderer.setSize(size.x, size.y, false);
+    cam.position.copy(saved.pos); cam.up.copy(saved.up); cam.quaternion.copy(saved.quat); cam.aspect = saved.aspect;
+    cam.updateProjectionMatrix();
+    this.gridGroup.visible = gridWas;
+    if (this.handleGroup) this.handleGroup.visible = handlesWas;
+    this.resize();
+    this.requestRender();
+    return url;
+  }
+
   /** Small JPEG of the current view, cropped to fill w×h (for recent-file cards). */
   thumbnail(w = 320, h = 200) {
     const gridWas = this.gridGroup.visible;

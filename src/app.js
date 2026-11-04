@@ -16,6 +16,9 @@ import { addRecent } from './recents.js';
 import { Mascot } from './mascot.js';
 import { featureHandles } from './handles.js';
 import * as cloud from './cloud.js';
+import { currentOrg } from './org.js';
+import { zipSync, strToU8 } from 'fflate';
+import { PRINTERS, MATERIALS, printReport, printReportText, formatHours, formatMoney, JOURNAL_SECTIONS, journalMarkdown, LESSONS } from './student.js';
 
 const CHEERS = {
   extrude: ['Nice extrude!', 'Look at that — it’s 3D now!', 'Solid work.'],
@@ -84,6 +87,11 @@ export class App {
     this.vp.onGizmoEnd = (delta, bodyId) => this.onGizmoEnd(delta, bodyId);
     this.sketcher = new Sketcher(this.vp, this.el.panel);
 
+    this.org = currentOrg();
+    if (this.org) {
+      document.body.classList.add('in-org');
+      document.documentElement.style.setProperty('--org', this.org.color || '#c8102e');
+    }
     this.buildToolbar();
     this.buildViewbar();
     this.bindViewportEvents();
@@ -97,6 +105,7 @@ export class App {
     this.mascot.mount(document.getElementById('viewport-wrap'));
     this.user = null;
     this.cloudId = null;
+
     this.landing = new Landing(this);
     if (cloud.cloudConfigured()) {
       cloud.currentUser().then((u) => { this.user = u; if (this.landing.visible) this.landing.render(); }).catch(() => {});
@@ -321,12 +330,15 @@ export class App {
         ['shell', 'Hollow', 'shell'], ['scale', 'Scale', 'scale'],
       ] },
       { title: 'Inspect', items: [
-        ['measure', 'Measure', 'measure', 'I'], ['params', 'Parameters', 'params'],
+        ['measure', 'Measure', 'measure', 'I'], ['params', 'Parameters', 'params'], ['printCheck', 'Print check', 'print'],
+      ] },
+      { title: 'Class', items: [
+        ['lessons', 'Lessons', 'lesson'], ['journal', 'Journal', 'journal'], ['handIn', 'Hand in', 'handin'],
       ] },
       { title: 'Edit', items: [['undo', 'Undo', 'undo'], ['redo', 'Redo', 'redo']] },
     ];
     const tb = this.el.toolbar;
-    tb.innerHTML = `<button class="brand" title="Home — recent files and new designs">${icon('home')}<span class="logo">◆</span> OpenCAD</button>`;
+    tb.innerHTML = `<button class="brand" title="Home — recent files and new designs">${icon('home')}<span class="logo">◆</span> OpenCAD${this.org ? `<span class="org-chip" title="${esc(this.org.name)}">${esc(this.org.short)}</span>` : ''}</button>`;
     tb.querySelector('.brand').onclick = () => this.goHome();
     for (const g of groups) {
       if (this.api && g.title === 'File') {
@@ -387,7 +399,7 @@ export class App {
   command(cmd, arg) {
     if (cmd.startsWith('view:')) { this.vp.resetUp(); return this.vp.setView(cmd.slice(5)); }
     if (cmd.startsWith('toggle:')) return this.toggleDisplay(cmd.slice(7));
-    if (this.landing.visible && !['new', 'open', 'openFile', 'examples', 'about', 'shortcuts', 'home', 'mascot', 'signIn', 'signOut'].includes(cmd)) return;
+    if (this.landing.visible && !['new', 'open', 'openFile', 'examples', 'about', 'shortcuts', 'home', 'mascot', 'signIn', 'signOut', 'lessons', 'profile'].includes(cmd)) return;
     if (FEATURES[cmd] && cmd !== 'sketch' && cmd !== 'importMesh') return this.createFeature(cmd);
     switch (cmd) {
       case 'new': return this.newDoc();
@@ -404,6 +416,11 @@ export class App {
       case 'home': return this.goHome();
       case 'mascot': return this.mascot.toggle();
       case 'cloudSave': return this.saveToCloud();
+      case 'printCheck': return this.openPrintCheck();
+      case 'journal': return this.openJournal();
+      case 'handIn': return this.handIn();
+      case 'lessons': return this.openLessons();
+      case 'profile': return this.editProfile();
       case 'signIn': return this.user ? this.accountMenu() : this.showAuth();
       case 'signOut': return this.doSignOut();
       case 'sketch': return this.startSketchFlow();
@@ -1495,6 +1512,8 @@ export class App {
     this.filePath = null;
     this.cloudId = null;
     this.meshSource = null;
+    this.lesson = null;
+    this.renderLesson();
     this.undoStack = [];
     this.redoStack = [];
     this.selection.clear();
@@ -1566,7 +1585,7 @@ export class App {
     try {
       let thumb = null;
       try { thumb = this.vp.thumbnail(320, 200); } catch { /* optional */ }
-      const row = await cloud.saveDesign({ id: this.cloudId, name, doc: this.doc, thumb });
+      const row = await cloud.saveDesign({ id: this.cloudId, name, doc: this.doc, thumb, org: this.org?.slug || null });
       this.cloudId = row.id;
       this.fileName = row.name;
       this.setDirty(false);
@@ -1721,6 +1740,7 @@ export class App {
         close();
         this.toast(`Signed in as ${this.user?.email || 'you'}`);
         if (this.landing.visible) this.landing.render();
+        if (!cloud.profileOf(this.user).fullName) await this.editProfile({ first: true });
         then?.();
       } catch (err) {
         show(err.message);
@@ -1732,12 +1752,274 @@ export class App {
     setTimeout(() => email.focus(), 20);
   }
 
+  /** "Tonkla · 9B · Singapore International School of Bangkok" */
+  whoAmI() {
+    const p = cloud.profileOf(this.user);
+    return [p.fullName || this.user?.email, p.className, this.org?.name].filter(Boolean).join(' · ');
+  }
+
   accountMenu() {
+    const p = cloud.profileOf(this.user);
     this.modal({
       title: 'Your account',
-      body: `<p>Signed in as <b>${esc(this.user?.email || '')}</b>.</p><p class="muted">Your cloud designs are on the start screen.</p>`,
-      buttons: [{ label: 'Close' }, { label: 'Sign out', danger: true, action: () => this.doSignOut() }],
+      body: `<p>Signed in as <b>${esc(p.fullName || this.user?.email || '')}</b>${p.className ? ` · ${esc(p.className)}` : ''}${this.org ? `<br/><span class="muted">${esc(this.org.name)}</span>` : ''}</p>
+        <p class="muted">${esc(this.user?.email || '')}</p>`,
+      buttons: [{ label: 'Close' }, { label: 'Edit name & class', action: () => this.editProfile() }, { label: 'Sign out', danger: true, action: () => this.doSignOut() }],
     });
+  }
+
+  /** Ask for the student's name and class (stored on the account). */
+  editProfile({ first = false } = {}) {
+    if (!this.user) return this.showAuth();
+    const p = cloud.profileOf(this.user);
+    return new Promise((resolve) => {
+      const m = this.modal({
+        title: first ? 'Welcome! What should we call you?' : 'Your name & class',
+        body: `<p class="muted">${this.org ? `Shown to you and on your hand-ins for ${esc(this.org.name)}.` : 'Shown in the app and on your hand-ins.'}</p>
+          <form class="auth-form" novalidate>
+            <label class="auth-row"><span>Your name</span><input id="pf-name" maxlength="80" autocomplete="name" placeholder="e.g. Tonkla" value="${esc(p.fullName)}"/></label>
+            <label class="auth-row"><span>Class (optional)</span><input id="pf-class" maxlength="40" placeholder="e.g. Year 9B" value="${esc(p.className)}"/></label>
+            <div class="auth-msg" hidden></div>
+            <button class="btn primary auth-submit" type="submit">Save</button>
+          </form>`,
+        buttons: [],
+        onClose: () => resolve(false),
+      });
+      const form = m.querySelector('form');
+      const msg = m.querySelector('.auth-msg');
+      form.addEventListener('keydown', (e) => e.stopPropagation());
+      form.onsubmit = async (e) => {
+        e.preventDefault();
+        const fullName = m.querySelector('#pf-name').value.trim();
+        if (!fullName) { msg.hidden = false; msg.textContent = 'Please type your name.'; return; }
+        try {
+          this.user = await cloud.updateProfile({ fullName, className: m.querySelector('#pf-class').value.trim() });
+          m.closest('.modal-backdrop')?.remove();
+          this.mascot.say(`Nice to meet you, <b>${esc(fullName)}</b>! 👋`, 'wave', 4000);
+          if (this.landing.visible) this.landing.render();
+          resolve(true);
+        } catch (err) { msg.hidden = false; msg.textContent = err.message; }
+      };
+      setTimeout(() => m.querySelector('#pf-name')?.focus(), 20);
+    });
+  }
+
+  // ===================== student tools =====================
+
+  printSettings() {
+    let st = {};
+    try { st = JSON.parse(localStorage.getItem('opencad-print-settings') || '{}'); } catch { st = {}; }
+    return {
+      printer: st.printer || this.org?.printer || 'bambu-a1',
+      material: st.material || 'pla',
+      infill: st.infill ?? 15,
+      price: st.price ?? (this.org?.currency === 'THB' || !this.org ? 600 : 25),
+      currency: st.currency || this.org?.currency || 'THB',
+    };
+  }
+
+  buildPrintReport() {
+    const st = this.printSettings();
+    const bodies = this.result.bodies.filter((b) => (this.selection.size ? this.selection.has(b.id) : this.isBodyVisible(b.id)));
+    return {
+      st,
+      report: printReport(bodies, {
+        printer: PRINTERS.find((p) => p.id === st.printer) || PRINTERS[0],
+        material: MATERIALS.find((m) => m.id === st.material) || MATERIALS[0],
+        infill: st.infill / 100,
+        pricePerKg: st.price,
+      }),
+    };
+  }
+
+  openPrintCheck() {
+    if (this.editing) this.commitEdit();
+    if (!this.result.bodies.length) return this.toast('Make something first, then check it for printing.', 'error');
+    const draw = () => {
+      const { st, report: r } = this.buildPrintReport();
+      const opt = (list, cur) => list.map((x) => `<option value="${x.id}" ${x.id === cur ? 'selected' : ''}>${esc(x.name)}</option>`).join('');
+      body.innerHTML = `
+        <div class="pc-settings">
+          <label>Printer<select data-s="printer">${opt(PRINTERS, st.printer)}</select></label>
+          <label>Material<select data-s="material">${opt(MATERIALS, st.material)}</select></label>
+          <label>Infill %<input type="number" data-s="infill" min="0" max="100" step="5" value="${st.infill}"/></label>
+          <label>Price per kg (${esc(st.currency)})<input type="number" data-s="price" min="0" step="10" value="${st.price}"/></label>
+        </div>
+        <div class="pc-total">
+          <div><b>${Math.round(r.total.grams)} g</b><span>filament</span></div>
+          <div><b>${formatHours(r.total.hours)}</b><span>print time*</span></div>
+          <div><b>${formatMoney(r.total.cost, st.currency)}</b><span>material cost</span></div>
+          <div><b>${r.total.metres.toFixed(1)} m</b><span>of 1.75 mm filament</span></div>
+        </div>
+        ${r.togetherFits ? '' : '<div class="pc-warn bad">⚠ All the parts together don’t fit on the bed. Print them in separate batches.</div>'}
+        <div class="pc-items">${r.items.map((it) => `
+          <div class="pc-item">
+            <div class="pc-name"><b>${esc(it.name)}</b><span>${it.size.map((v) => v.toFixed(1)).join(' × ')} mm</span></div>
+            ${it.warnings.map((w) => `<div class="pc-warn ${w.level}">${w.level === 'ok' ? '✓' : w.level === 'info' ? 'ℹ' : '⚠'} ${esc(w.text)}</div>`).join('')}
+          </div>`).join('')}</div>
+        <p class="muted small">*Times and weights are estimates. Your slicer gives exact numbers. ${this.selection.size ? 'Checking the selected bodies.' : 'Checking all visible bodies.'}</p>`;
+      body.querySelectorAll('[data-s]').forEach((el) => {
+        el.onchange = () => {
+          const cur = this.printSettings();
+          const k = el.dataset.s;
+          cur[k] = el.type === 'number' ? Number(el.value) : el.value;
+          try { localStorage.setItem('opencad-print-settings', JSON.stringify(cur)); } catch { /* optional */ }
+          draw();
+        };
+      });
+    };
+    const m = this.modal({
+      title: `${icon('print')} Print check`,
+      body: '<div class="pc"></div>',
+      wide: true,
+      buttons: [
+        { label: 'Drop to bed', action: () => this.dropToBed() },
+        { label: 'Export STL', action: () => this.exportMesh('stl') },
+        { label: 'Done', primary: true },
+      ],
+    });
+    const body = m.querySelector('.pc');
+    draw();
+  }
+
+  /** Move every floating (or sunken) body so it sits on the build plate (Z = 0). */
+  dropToBed() {
+    const moves = this.result.bodies.filter((b) => b.bbox && !b.meshOnly && Math.abs(b.bbox.min[2]) > 0.01);
+    if (!moves.length) return this.toast('Everything already sits on the bed.');
+    this.change((d) => {
+      for (const b of moves) {
+        d.features.push({ id: uid(), type: 'move', name: this.nextFeatureName('move'), params: { target: b.id, tx: '0', ty: '0', tz: String(Math.round(-b.bbox.min[2] * 1000) / 1000), rx: '0', ry: '0', rz: '0', px: '0', py: '0', pz: '0', copy: false } });
+      }
+    });
+    this.mascot.say(`Dropped ${moves.length} part${moves.length > 1 ? 's' : ''} onto the bed.`, 'cheer', 3500);
+  }
+
+  openJournal() {
+    if (this.editing) this.commitEdit();
+    const j = this.doc.journal || {};
+    const before = this.snapshot();
+    const m = this.modal({
+      title: `${icon('journal')} Design journal · ${esc(this.fileName)}`,
+      wide: true,
+      body: `<p class="muted">${this.user ? esc(this.whoAmI()) + ' · ' : ''}Write as you go. The journal is saved with your design and included when you hand in.</p>
+        ${JOURNAL_SECTIONS.map((sec) => `
+          <label class="jr-sec"><b>${esc(sec.title)}</b><span class="muted small">${esc(sec.prompt)}</span>
+            <textarea data-j="${sec.key}" rows="4">${esc(j[sec.key] || '')}</textarea></label>`).join('')}`,
+      buttons: [
+        { label: 'Download as text', action: () => this.downloadJournal() },
+        { label: 'Done', primary: true },
+      ],
+      onClose: () => {},
+    });
+    m.querySelectorAll('textarea').forEach((ta) => {
+      ta.addEventListener('keydown', (e) => e.stopPropagation());
+      ta.oninput = () => {
+        this.doc.journal = { ...(this.doc.journal || {}), [ta.dataset.j]: ta.value };
+        if (!this._journalDirty) { this._journalDirty = true; this.undoStack.push(before); }
+        this.setDirty(true);
+      };
+    });
+    this._journalDirty = false;
+  }
+
+  journalText(report) {
+    const p = cloud.profileOf(this.user);
+    return journalMarkdown(this.doc, { title: this.fileName, student: p.fullName || '', className: p.className || '', school: this.org?.name || '', report });
+  }
+
+  async downloadJournal() {
+    const text = this.journalText(this.buildPrintReport().report);
+    await this.saveBinary(new TextEncoder().encode(text), `${this.fileName} - journal.md`, 'text/markdown', [{ name: 'Markdown', extensions: ['md'] }]);
+  }
+
+  /** One ZIP for the teacher: design, STL, four views, journal and print check. */
+  async handIn() {
+    if (this.editing) this.commitEdit();
+    if (!this.result.bodies.length) return this.toast('Make something first, then hand it in.', 'error');
+    const p = cloud.profileOf(this.user);
+    const base = this.fileName.replace(/[\\/:*?"<>|]+/g, '-');
+    const who = (p.fullName || '').replace(/[\\/:*?"<>|]+/g, '-');
+    const files = {};
+    files[`${base}.ocad`] = strToU8(JSON.stringify(this.doc, null, 1));
+    const group = this.exportGroup(this.result.bodies.filter((b) => this.isBodyVisible(b.id)).map((b) => b.id));
+    const stl = new STLExporter().parse(group, { binary: true });
+    files[`${base}.stl`] = new Uint8Array(stl.buffer);
+    for (const v of ['iso', 'front', 'top', 'right']) {
+      const url = this.vp.captureView(v, 1280, 800);
+      const bin = atob(url.split(',')[1]);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      files[`views/${v}.png`] = bytes;
+    }
+    const { st, report } = this.buildPrintReport();
+    files['journal.md'] = strToU8(this.journalText(report));
+    files['print-check.txt'] = strToU8(printReportText(report, st.currency));
+    const zip = zipSync(files, { level: 6 });
+    const name = `${who ? `${who} - ` : ''}${base} - hand-in.zip`;
+    await this.saveBinary(zip, name, 'application/zip', [{ name: 'ZIP', extensions: ['zip'] }]);
+    const empty = JOURNAL_SECTIONS.filter((sec) => !(this.doc.journal?.[sec.key] || '').trim()).length;
+    this.mascot.say(empty ? `Hand-in pack ready! Tip: ${empty} journal section${empty > 1 ? 's are' : ' is'} still empty.` : 'Hand-in pack ready! Great work. 🎓', empty ? 'happy' : 'cheer', 6000, empty ? [{ label: 'Open journal', cmd: 'journal' }] : []);
+  }
+
+  openLessons() {
+    const m = this.modal({
+      title: `${icon('lesson')} Lessons`,
+      wide: true,
+      body: `<p class="muted">Pick a project. Pip walks you through it step by step.</p>
+        <div class="examples">${LESSONS.map((l) => `<button class="ex-card" data-lesson="${l.id}"><b>${esc(l.title)}</b><span class="muted small">${esc(l.level)}</span><span>${esc(l.summary)}</span></button>`).join('')}</div>`,
+      buttons: [{ label: 'Close' }],
+    });
+    m.querySelectorAll('[data-lesson]').forEach((b) => {
+      b.onclick = () => { m.closest('.modal-backdrop').remove(); this.startLesson(b.dataset.lesson); };
+    });
+  }
+
+  async startLesson(id) {
+    const lesson = LESSONS.find((l) => l.id === id);
+    if (!lesson) return;
+    if (!this.landing.visible && this.doc.features.length && !(await this.confirmDiscard())) return;
+    this.loadDoc(emptyDoc(), lesson.title);
+    this.lesson = { lesson, step: 0 };
+    this.renderLesson();
+    this.mascot.say(`Let’s make a <b>${esc(lesson.title.toLowerCase())}</b>! Follow the steps in the card at the top left.`, 'wave', 6000);
+  }
+
+  renderLesson() {
+    let card = document.getElementById('lesson-card');
+    const st = this.lesson;
+    if (!st) { card?.remove(); return; }
+    if (!card) {
+      card = document.createElement('div');
+      card.id = 'lesson-card';
+      document.getElementById('viewport-wrap').appendChild(card);
+    }
+    const { lesson, step } = st;
+    const s = lesson.steps[step];
+    const last = step === lesson.steps.length - 1;
+    card.innerHTML = `
+      <div class="ls-head">${icon('lesson')}<b>${esc(lesson.title)}</b><span>Step ${step + 1} of ${lesson.steps.length}</span><button class="icon-btn" data-ls="close" title="Close lesson">${icon('close')}</button></div>
+      <div class="ls-bar"><i style="width:${((step + 1) / lesson.steps.length) * 100}%"></i></div>
+      <p>${s.text}</p>
+      <div class="ls-actions">
+        ${s.cmd ? `<button class="btn small" data-ls="do">${esc(s.label || 'Do it')}</button>` : ''}
+        <span class="ls-spacer"></span>
+        ${step > 0 ? '<button class="btn small" data-ls="back">Back</button>' : ''}
+        <button class="btn small primary" data-ls="next">${last ? 'Finish' : 'Next'}</button>
+      </div>`;
+    card.querySelector('[data-ls=close]').onclick = () => { this.lesson = null; this.renderLesson(); };
+    card.querySelector('[data-ls=do]')?.addEventListener('click', () => this.command(s.cmd));
+    card.querySelector('[data-ls=back]')?.addEventListener('click', () => { st.step--; this.renderLesson(); });
+    card.querySelector('[data-ls=next]').onclick = () => {
+      if (last) {
+        this.lesson = null;
+        this.renderLesson();
+        this.mascot.say(`You finished <b>${esc(lesson.title)}</b>! 🎉 Try another lesson or make it your own.`, 'cheer', 6000);
+        return;
+      }
+      st.step++;
+      this.renderLesson();
+      this.mascot.setMood('happy', 1200);
+    };
   }
 
   async doSignOut() {

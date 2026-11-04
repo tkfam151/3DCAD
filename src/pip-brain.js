@@ -9,6 +9,10 @@ const SYN = {
   pull: 'extrude', push: 'extrude', thicken: 'extrude', height: 'extrude',
   spin: 'revolve', lathe: 'revolve', turn: 'revolve',
   resize: 'resize', bigger: 'resize', smaller: 'resize', taller: 'resize', wider: 'resize', longer: 'resize', stretch: 'resize', arrow: 'arrow', arrows: 'arrow',
+  supports: 'printcheck', support: 'printcheck', overhang: 'printcheck', fit: 'printcheck', fits: 'printcheck', bed: 'printcheck', cost: 'printcheck', price: 'printcheck', time: 'printcheck', long: 'printcheck', check: 'printcheck', printable: 'printcheck',
+  journal: 'journal', notes: 'journal', note: 'journal', reflection: 'journal', evaluate: 'journal', criteria: 'journal', myp: 'journal', ib: 'journal',
+  submit: 'handin', hand: 'handin', homework: 'handin', assignment: 'handin', teacher: 'handin', zip: 'handin',
+  lesson: 'lesson', lessons: 'lesson', tutorial: 'lesson', learn: 'lesson', beginner: 'lesson', start: 'lesson', keychain: 'lesson', project: 'lesson',
   rotate: 'move', position: 'move', place: 'move', drag: 'move', translate: 'move',
   join: 'combine', merge: 'combine', union: 'combine', boolean: 'combine', intersect: 'combine', glue: 'combine',
   array: 'pattern', repeat: 'pattern', copies: 'pattern', duplicate: 'pattern', copy: 'pattern',
@@ -54,6 +58,26 @@ const KB = [
     topic: ['sketch'], also: ['rectangle', 'circle', 'line'],
     a: 'Press <b>S</b> (Sketch), then click an origin plane or any flat face of a body. Draw with <b>Line</b>, <b>Rectangle</b>, <b>Circle</b>, <b>Polygon</b> or <b>Slot</b>. While drawing, type a number for an exact size (for a rectangle, <code>40,20</code>). Press <b>Enter</b> to finish.',
     actions: [{ label: 'Start a sketch', cmd: 'sketch' }],
+  },
+  {
+    topic: ['printcheck'],
+    a: '<b>Print check</b> (in the toolbar) tells you if your part fits your printer, sits flat on the bed, needs supports, and roughly how many grams, how long and how much it costs. <b>Drop to bed</b> moves floating parts down onto the plate.',
+    actions: [{ label: 'Print check', cmd: 'printCheck' }],
+  },
+  {
+    topic: ['journal'],
+    a: 'The <b>Journal</b> keeps your design notes with the model, following the design cycle: <b>A</b> inquiring & analysing, <b>B</b> developing ideas, <b>C</b> creating the solution, <b>D</b> evaluating.',
+    actions: [{ label: 'Open journal', cmd: 'journal' }],
+  },
+  {
+    topic: ['handin'],
+    a: '<b>Hand in</b> downloads one ZIP for your teacher with your design file, an STL, four screenshots, your journal and the print check.',
+    actions: [{ label: 'Hand in', cmd: 'handIn' }],
+  },
+  {
+    topic: ['lesson'],
+    a: 'Try a <b>Lesson</b>: a name keychain, a phone stand or a box with a lid. I’ll show you each step.',
+    actions: [{ label: 'Open lessons', cmd: 'lessons' }],
   },
   {
     topic: ['words'],

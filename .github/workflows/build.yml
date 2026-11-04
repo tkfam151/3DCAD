@@ -151,13 +151,20 @@ jobs:
       - name: Build the web app
         run: npm run build
       - uses: actions/configure-pages@v5
+      - name: Share the school list with the website
+        run: mkdir -p site/_data && cp src/orgs.json site/_data/orgs.json
       - name: Build the website with Jekyll
         uses: actions/jekyll-build-pages@v1
         with:
           source: ./site
           destination: ./_site
-      - name: Put the web app at /app/
-        run: sudo cp -r dist _site/app
+      - name: Put the web app at /app/ and in every school space /org/<slug>/
+        run: |
+          sudo cp -r dist _site/app
+          for slug in $(node -p "require('./src/orgs.json').map(o => o.slug).join(' ')"); do
+            sudo mkdir -p "_site/org/$slug"
+            sudo cp -r dist/. "_site/org/$slug/"
+          done
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
