@@ -27,6 +27,11 @@ test('Pip answers how-to questions', () => {
   has('how do I submit to my teacher', /Hand in/);
   has('where do I write my reflection', /Journal/);
   has('show me a tutorial', /Lesson/);
+  has('how do I join my class', /join code/);
+  has('how do I share my design with a friend', /Share/);
+  has('add my school', /Add your school/);
+  has('can I use it offline', /Install app/);
+  has('where do I see my grade', /feedback and a grade/);
   has('what is the meaning of life', /not sure/);
   assert.equal(answer('how do I make a hole').actions[0].cmd, 'sketch');
 });

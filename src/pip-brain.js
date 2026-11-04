@@ -11,7 +11,11 @@ const SYN = {
   resize: 'resize', bigger: 'resize', smaller: 'resize', taller: 'resize', wider: 'resize', longer: 'resize', stretch: 'resize', arrow: 'arrow', arrows: 'arrow',
   supports: 'printcheck', support: 'printcheck', overhang: 'printcheck', fit: 'printcheck', fits: 'printcheck', bed: 'printcheck', cost: 'printcheck', price: 'printcheck', time: 'printcheck', long: 'printcheck', check: 'printcheck', printable: 'printcheck',
   journal: 'journal', notes: 'journal', note: 'journal', reflection: 'journal', evaluate: 'journal', criteria: 'journal', myp: 'journal', ib: 'journal',
-  submit: 'handin', hand: 'handin', homework: 'handin', assignment: 'handin', teacher: 'handin', zip: 'handin',
+  submit: 'handin', hand: 'handin', homework: 'handin', zip: 'handin',
+  class: 'classroom', classes: 'classroom', join: 'classroom', code: 'classroom', assignment: 'classroom', assignments: 'classroom', teacher: 'classroom', grade: 'classroom', feedback: 'classroom', due: 'classroom', students: 'classroom',
+  share: 'share', sharing: 'share', link: 'share', send: 'share', friend: 'share',
+  school: 'school', schools: 'school', register: 'school', directory: 'school', organisation: 'school', organization: 'school',
+  install: 'install', offline: 'install', app: 'install', homescreen: 'install', ipad: 'install', chromebook: 'install',
   lesson: 'lesson', lessons: 'lesson', tutorial: 'lesson', learn: 'lesson', beginner: 'lesson', start: 'lesson', keychain: 'lesson', project: 'lesson',
   rotate: 'move', position: 'move', place: 'move', drag: 'move', translate: 'move',
   join: 'combine', merge: 'combine', union: 'combine', boolean: 'combine', intersect: 'combine', glue: 'combine',
@@ -58,6 +62,25 @@ const KB = [
     topic: ['sketch'], also: ['rectangle', 'circle', 'line'],
     a: 'Press <b>S</b> (Sketch), then click an origin plane or any flat face of a body. Draw with <b>Line</b>, <b>Rectangle</b>, <b>Circle</b>, <b>Polygon</b> or <b>Slot</b>. While drawing, type a number for an exact size (for a rectangle, <code>40,20</code>). Press <b>Enter</b> to finish.',
     actions: [{ label: 'Start a sketch', cmd: 'sketch' }],
+  },
+  {
+    topic: ['classroom'],
+    a: 'Open <b>Classes</b>. Students type the <b>join code</b> from their teacher, then open an assignment and click <b>Hand in this design</b>. Teachers can create a class, post assignments with due dates, and give feedback and a grade on each submission.',
+    actions: [{ label: 'Open classes', cmd: 'classes' }],
+  },
+  {
+    topic: ['share'],
+    a: 'Save your design to the cloud, then click <b>Share</b> in the toolbar (or the 🔗 on its card on the start screen). Anyone with the link can view it and save their own copy, but can’t change yours.',
+    actions: [{ label: 'Share this design', cmd: 'share' }],
+  },
+  {
+    topic: ['school'],
+    a: 'Any teacher can add their school from the start screen with <b>Add your school</b>. It gets its own address with the school’s name and colour, plus classes and cloud designs for its students.',
+    actions: [{ label: 'Add your school', cmd: 'addSchool' }],
+  },
+  {
+    topic: ['install'],
+    a: 'In Chrome or Edge, click <b>Install app</b> on the start screen (or the install icon in the address bar). On iPad or iPhone, tap Share, then <b>Add to Home Screen</b>. It then opens like a normal app and works offline.',
   },
   {
     topic: ['printcheck'],

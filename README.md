@@ -17,7 +17,10 @@ sketch → extrude/revolve → modify, with every step recorded on an editable *
 | **3D text** | Click **Text** in the toolbar, type your words and set letter height and thickness to get solid 3D letters. **Join** them onto a part for raised lettering or **Cut** to engrave; drag the arrows to resize. There's also a Text tool inside Sketch (**A**) for text on sketched profiles. |
 | **Sign in & cloud save** | Create an account with email and password, click **Cloud** to save, and reopen your designs from the start screen on any computer, in the app or the website. Powered by Supabase. |
 | **For students** | **Print check** (fits the printer? sits flat? needs supports? grams, time and cost), **Drop to bed**, a **Design journal** following the MYP design cycle, **Hand in** (one ZIP with design, STL, 4 screenshots, journal and print check) and step-by-step **Lessons** with Pip. |
-| **School spaces** | Each school gets its own address, e.g. **/3DCAD/org/sisb/** for Singapore International School of Bangkok: school branding, “name · class · school” when signed in, and cloud designs kept in the school's space. Directory: **/3DCAD/org/**. |
+| **School spaces** | Any teacher can **add their school** (start screen → *Add your school*). It appears in the directory at **/3DCAD/org/** and gets its own address like **/3DCAD/org/sisb/** with the school's name and colour, “name · class · school” when signed in, and school cloud designs. |
+| **Classes & assignments** | Teachers create a class and share its **join code** or invite link, then post assignments with instructions and due dates. Students **hand in** their design in one click; teachers open each submission, leave **feedback and a grade**, and students see it. |
+| **Share links** | Share a view-only link to any cloud design. Anyone can open it and save their own copy. |
+| **Install & offline** | Install the website as an app (Chrome/Edge: *Install app*; iPad: *Add to Home Screen*). It keeps working offline. |
 | **Drag to resize** | Double-click a shape (or click its timeline step) and drag the blue arrows to change its width, depth, height, radius or extrude distance live. Hold ⇧ for 0.1 mm steps or ⌥ for no snapping. |
 | **Parametric** | Every feature stays editable on the timeline. Fields take expressions such as `width/2 + 3` or `1in`, using named **Parameters**. Suppress, reorder, rename or delete steps. |
 | **Inspect** | Measure distances, see size, volume, surface area and estimated PLA mass. |
@@ -162,7 +165,8 @@ src/app.js       UI: toolbar, browser, timeline, property panels, files
 src/landing.js   start screen: new design, open, recents, cloud designs, templates
 src/cloud.js     sign-in and cloud saving (Supabase)
 src/student.js   print check, design journal, lessons
-src/org.js       school spaces (src/orgs.json)
+src/org.js       school spaces (src/orgs.json + registered schools)
+src/classes-ui.js classes, assignments, hand-ins and grading
 supabase/        database migrations (designs table + security rules)
 tests/           kernel tests (node --test)
 site/            project website (Jekyll); the web app is added at /app/ when it's published
@@ -170,7 +174,9 @@ site/            project website (Jekyll); the web app is added at /app/ when it
 
 ## School spaces
 
-Schools are listed in `src/orgs.json` (slug, name, short name, city, colour, currency, default printer).
+Teachers add schools themselves from the app; they're stored in the `orgs` table and work at
+`/3DCAD/org/<slug>/` right away (GitHub Pages serves the app from `404.html` for those addresses).
+Built-in schools are listed in `src/orgs.json` (slug, name, short name, city, colour, currency, default printer).
 On each deploy the web app is published at `https://tkfam151.github.io/3DCAD/org/<slug>/` and the
 directory page `https://tkfam151.github.io/3DCAD/org/` lists every school. To add a school, add an
 entry to `src/orgs.json` and push.
@@ -183,8 +189,11 @@ Sign-in and cloud saving use a [Supabase](https://supabase.com) project.
    row level security, so each user can only read and change their own designs. If your Supabase project is
    linked to this GitHub repo, the migration is applied when it reaches the production branch. Otherwise,
    paste the file into **Supabase → SQL Editor** and click **Run**.
-   Then run `supabase/migrations/20261104090000_designs_org.sql` the same way. It adds the `org`
-   column used by school spaces.
+   Then run `supabase/migrations/20261104090000_designs_org.sql` and
+   `supabase/migrations/20261105090000_schools_classes.sql` the same way. They add school spaces, the
+   school directory, classes, assignments, submissions and share links, each with row level security
+   (students only see their own work; teachers see submissions for their own classes).
+   To mark a school as verified, run `update public.orgs set verified = true where slug = '…';` in the SQL Editor.
 2. **App keys:** copy the **Project URL** and the **anon / publishable key** from **Project Settings → API**
    and put them in `src/cloud-config.js`, or set the repository variables `SUPABASE_URL` and
    `SUPABASE_ANON_KEY` (**Settings → Secrets and variables → Actions → Variables**). These two values are

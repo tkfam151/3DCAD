@@ -165,6 +165,10 @@ jobs:
             sudo mkdir -p "_site/org/$slug"
             sudo cp -r dist/. "_site/org/$slug/"
           done
+          # Schools added in the app have no folder of their own: GitHub Pages serves 404.html
+          # for unknown addresses, so make it the app (with absolute asset paths) and it
+          # reads the school from the address /3DCAD/org/<slug>/.
+          sed 's#="\./assets/#="/3DCAD/app/assets/#g; s#href="\./#href="/3DCAD/app/#g' dist/index.html | sudo tee _site/404.html > /dev/null
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

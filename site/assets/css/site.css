@@ -116,3 +116,9 @@ pre code { background: none; border: 0; padding: 0; font-size: 13px; white-space
 .org-go { margin-left: auto; color: #7fb4ff; font-weight: 600; white-space: nowrap; }
 .ticks { padding-left: 20px; color: #c7d0db; }
 .ticks li { margin-bottom: 8px; }
+
+.dir-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+.dir-head h2 { margin: 0 auto 0 0; }
+.dir-head input { background: var(--bg2); border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; color: var(--text); font: inherit; min-width: 220px; }
+.org-card[hidden] { display: none; }
+.verified { color: #7fdca4; font-size: 14px; }

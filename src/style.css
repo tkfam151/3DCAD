@@ -440,3 +440,77 @@ body.in-org #landing { background: radial-gradient(ellipse at 70% -10%, color-mi
   .tb-btn { min-width: 32px; padding: 6px 3px 4px; }
   .tb-btn .icon { width: 21px; height: 21px; }
 }
+
+/* ---------- classes ---------- */
+.modal.classes-modal { width: min(820px, 95vw); }
+.cl h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 15px; }
+.cl h3 .icon { width: 18px; height: 18px; color: #a9c7ef; }
+.cl h4 { margin: 18px 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+.cl-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+.cl-cols section { padding: 14px; background: var(--bg3); border-radius: 10px; }
+.cl-join, .cl-new { display: flex; gap: 8px; margin-bottom: 10px; }
+.cl-join input { text-transform: uppercase; letter-spacing: 1px; }
+.cl-list { display: flex; flex-direction: column; gap: 6px; }
+.cl-card { display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; align-items: center; column-gap: 10px; text-align: left; padding: 10px 12px; background: var(--bg2); border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+.cl-card:hover { border-color: var(--accent); }
+.cl-card b { grid-column: 1; }
+.cl-card > span:not(.cl-pill) { grid-column: 1; color: var(--muted); font-size: 12px; }
+.cl-card .cl-pill { grid-column: 2; grid-row: 1 / span 2; }
+.cl-pill { padding: 2px 9px; border-radius: 10px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+.cl-pill.todo { background: rgba(59,140,255,.18); color: #9cc4ff; }
+.cl-pill.late { background: rgba(229,83,75,.18); color: #ff9a93; }
+.cl-pill.sent { background: rgba(227,163,59,.18); color: #f1c27d; }
+.cl-pill.done { background: rgba(70,185,122,.18); color: #7fdca4; }
+.cl-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 8px 0 10px; }
+.cl-head h3 { margin: 0; font-size: 18px; }
+.cl-code { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+.cl-code code { font-size: 16px; letter-spacing: 2px; padding: 3px 9px; color: #fff; }
+.cl-add { margin-bottom: 6px; padding: 10px 12px; background: var(--bg3); border-radius: 10px; }
+.cl-add summary { cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 600; }
+.cl-add summary .icon { width: 15px; height: 15px; }
+.cl-asg-form { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.cl-asg-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.cl-asg-form textarea { font-family: inherit; font-size: 13px; }
+.cl-asg-form .btn { align-self: flex-start; }
+.cl-ins { padding: 10px 12px; background: var(--bg3); border-radius: 8px; line-height: 1.5; }
+.cl-members { display: flex; flex-wrap: wrap; gap: 6px; }
+.cl-members span { padding: 3px 10px; background: var(--bg3); border-radius: 12px; font-size: 12.5px; }
+.cl-subs { display: flex; flex-direction: column; gap: 10px; }
+.cl-sub { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 12px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; }
+.cl-thumb { aspect-ratio: 16 / 10; border-radius: 6px; overflow: hidden; background: var(--bg3); display: grid; place-items: center; }
+.cl-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.cl-thumb .icon { width: 30px; height: 30px; color: var(--muted); }
+.cl-sub-main { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.cl-sub-main textarea { font-family: inherit; font-size: 13px; }
+.cl-sub-row { display: flex; gap: 6px; align-items: center; }
+.cl-sub-row input { width: 130px; }
+.late-txt { color: #ff9a93; }
+.cl-mine { padding: 12px; background: var(--bg3); border-radius: 10px; margin-bottom: 12px; }
+.cl-feedback { margin-top: 10px; display: flex; gap: 12px; align-items: flex-start; }
+.cl-grade { padding: 8px 12px; border-radius: 8px; background: rgba(70,185,122,.18); color: #7fdca4; font-size: 18px; font-weight: 700; }
+.cl-feedback p { margin: 0; line-height: 1.5; }
+.cl-submit { padding: 12px; border: 1px dashed var(--line); border-radius: 10px; }
+.cl-submit p { margin: 0 0 8px; }
+.btn.danger.small { padding: 4px 10px; }
+@media (max-width: 700px) { .cl-cols { grid-template-columns: 1fr; } .cl-sub { grid-template-columns: 1fr; } }
+
+/* ---------- view-only banner, sharing, school form ---------- */
+#view-banner { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 16; display: flex; align-items: center; gap: 10px; max-width: calc(100% - 120px); padding: 8px 10px 8px 14px; background: rgba(27,31,37,.95); border: 1px solid #e3a33b; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+#view-banner > .icon { width: 18px; height: 18px; color: #e3a33b; flex: none; }
+#view-banner span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#view-banner .vb-note { color: var(--muted); font-size: 12px; }
+@media (max-width: 1100px) { #view-banner .vb-note { display: none; } }
+.share-row { display: flex; gap: 8px; }
+.share-row input { flex: 1; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+.sc-grid { display: grid; grid-template-columns: 1fr 1.5fr auto; gap: 10px; }
+.sc-grid input[type=color] { width: 56px; height: 34px; padding: 2px; }
+.sc-url { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); }
+.sc-url span { padding-left: 8px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.sc-url input { border: 0; background: transparent; padding-left: 0; box-shadow: none !important; }
+.ld-top-actions { display: flex; gap: 8px; margin-left: auto; -webkit-app-region: no-drag; }
+.ld-top-actions .btn { text-decoration: none; }
+.ld-top-actions .icon { width: 15px; height: 15px; }
+.ld-top-actions + .ld-account { margin-left: 14px; }
+.ld-share { position: absolute; top: 6px; right: 36px; display: none; padding: 3px; border: 0; border-radius: 6px; background: rgba(0,0,0,.6); color: #fff; cursor: pointer; }
+.ld-share .icon { width: 14px; height: 14px; }
+.ld-card:hover .ld-share { display: flex; }

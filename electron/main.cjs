@@ -152,6 +152,7 @@ function buildMenu() {
         { label: 'Save', accelerator: 'CmdOrCtrl+S', click: () => send('save') },
         { label: 'Save As…', accelerator: 'CmdOrCtrl+Shift+S', click: () => send('saveAs') },
         { label: 'Save to Cloud', click: () => send('cloudSave') },
+        { label: 'Share Link…', click: () => send('share') },
         { label: 'Account…', click: () => send('signIn') },
         { type: 'separator' },
         { label: 'Import STL / OBJ into Design…', accelerator: 'CmdOrCtrl+I', click: () => send('importMesh') },
@@ -216,6 +217,7 @@ function buildMenu() {
     {
       label: 'Class',
       submenu: [
+        { label: 'Classes & Assignments…', click: () => send('classes') },
         { label: 'Lessons…', click: () => send('lessons') },
         { label: 'Print Check…', click: () => send('printCheck') },
         { label: 'Design Journal…', click: () => send('journal') },

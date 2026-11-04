@@ -11,3 +11,6 @@ markdown: kramdown
 exclude:
   - Gemfile
   - Gemfile.lock
+# public Supabase values (same as src/cloud-config.js), used to list registered schools
+supabase_url: "https://lfplpizvmcgvvvvpgomv.supabase.co"
+supabase_key: "sb_publishable_NZO6rqn_UsYFTJgYJOGmPA_Eh2nr-do"

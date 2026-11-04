@@ -24,3 +24,10 @@ boot().catch((e) => {
   if (l) l.textContent = `Failed to start: ${e.message}`;
   window.api?.reportError?.(e?.stack || e?.message || String(e));
 });
+
+// Offline support / install as an app (website only, not the desktop app)
+if ('serviceWorker' in navigator && location.protocol === 'https:' && !window.api) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => { /* e.g. a school page served from 404.html */ });
+  });
+}

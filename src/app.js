@@ -16,7 +16,8 @@ import { addRecent } from './recents.js';
 import { Mascot } from './mascot.js';
 import { featureHandles } from './handles.js';
 import * as cloud from './cloud.js';
-import { currentOrg } from './org.js';
+import { currentOrg, orgSlugFromPath, slugify } from './org.js';
+import { ClassesUI } from './classes-ui.js';
 import { zipSync, strToU8 } from 'fflate';
 import { PRINTERS, MATERIALS, printReport, printReportText, formatHours, formatMoney, JOURNAL_SECTIONS, journalMarkdown, LESSONS } from './student.js';
 
@@ -107,8 +108,10 @@ export class App {
     this.cloudId = null;
 
     this.landing = new Landing(this);
+    this.classes = new ClassesUI(this);
+    if (!this.org && orgSlugFromPath() && cloud.cloudConfigured()) this.lookupOrg(orgSlugFromPath());
     if (cloud.cloudConfigured()) {
-      cloud.currentUser().then((u) => { this.user = u; if (this.landing.visible) this.landing.render(); }).catch(() => {});
+      cloud.currentUser().then((u) => { this.user = u; if (this.landing.visible) this.landing.render(); this.handleHash(); }).catch(() => this.handleHash());
       cloud.onAuthChange((u) => {
         const changed = (u?.id || null) !== (this.user?.id || null);
         this.user = u;
@@ -119,6 +122,13 @@ export class App {
     this.regen();
     this.vp.setView('iso');
     this.landing.show();
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      this._installEvent = e;
+      this.canInstall = true;
+      if (this.landing.visible) this.landing.render();
+    });
+    if (!cloud.cloudConfigured()) this.handleHash();
   }
 
   /** What Pip knows about the open design when you ask it questions. */
@@ -224,6 +234,7 @@ export class App {
     this.filePath = path;
     this.cloudId = null;
     this.mode = 'normal';
+    this.setViewBanner(null);
     this.exitMeasure?.();
     this.landing?.hide();
     this._lastErrIds = null;
@@ -317,7 +328,7 @@ export class App {
       { title: 'File', items: [
         ['new', 'New', 'new'], ['open', 'Open', 'open'], ['save', 'Save', 'save'],
         ['menu:export', 'Export', 'export'], ['importMesh', 'Import', 'import'],
-        ...(cloud.cloudConfigured() ? [['cloudSave', 'Cloud', 'cloud']] : []),
+        ...(cloud.cloudConfigured() ? [['cloudSave', 'Cloud', 'cloud'], ['share', 'Share', 'link']] : []),
       ] },
       { title: 'Create', items: [
         ['sketch', 'Sketch', 'sketch', 'S'], ['extrude', 'Extrude', 'extrude', 'E'], ['revolve', 'Revolve', 'revolve'],
@@ -333,7 +344,7 @@ export class App {
         ['measure', 'Measure', 'measure', 'I'], ['params', 'Parameters', 'params'], ['printCheck', 'Print check', 'print'],
       ] },
       { title: 'Class', items: [
-        ['lessons', 'Lessons', 'lesson'], ['journal', 'Journal', 'journal'], ['handIn', 'Hand in', 'handin'],
+        ['lessons', 'Lessons', 'lesson'], ['classes', 'Classes', 'school'], ['journal', 'Journal', 'journal'], ['handIn', 'Hand in', 'handin'],
       ] },
       { title: 'Edit', items: [['undo', 'Undo', 'undo'], ['redo', 'Redo', 'redo']] },
     ];
@@ -399,7 +410,7 @@ export class App {
   command(cmd, arg) {
     if (cmd.startsWith('view:')) { this.vp.resetUp(); return this.vp.setView(cmd.slice(5)); }
     if (cmd.startsWith('toggle:')) return this.toggleDisplay(cmd.slice(7));
-    if (this.landing.visible && !['new', 'open', 'openFile', 'examples', 'about', 'shortcuts', 'home', 'mascot', 'signIn', 'signOut', 'lessons', 'profile'].includes(cmd)) return;
+    if (this.landing.visible && !['new', 'open', 'openFile', 'examples', 'about', 'shortcuts', 'home', 'mascot', 'signIn', 'signOut', 'lessons', 'profile', 'classes', 'addSchool'].includes(cmd)) return;
     if (FEATURES[cmd] && cmd !== 'sketch' && cmd !== 'importMesh') return this.createFeature(cmd);
     switch (cmd) {
       case 'new': return this.newDoc();
@@ -417,6 +428,9 @@ export class App {
       case 'mascot': return this.mascot.toggle();
       case 'cloudSave': return this.saveToCloud();
       case 'printCheck': return this.openPrintCheck();
+      case 'classes': return this.classes.open();
+      case 'addSchool': return this.registerSchool();
+      case 'share': return this.shareDesign();
       case 'journal': return this.openJournal();
       case 'handIn': return this.handIn();
       case 'lessons': return this.openLessons();
@@ -1802,6 +1816,186 @@ export class App {
       };
       setTimeout(() => m.querySelector('#pf-name')?.focus(), 20);
     });
+  }
+
+  async installApp() {
+    const ev = this._installEvent;
+    if (!ev) return this.toast('Use your browser’s menu to install: “Install OpenCAD Studio” or “Add to Home Screen”.');
+    ev.prompt();
+    const { outcome } = await ev.userChoice.catch(() => ({}));
+    this._installEvent = null;
+    this.canInstall = false;
+    if (outcome === 'accepted') this.mascot.say('Installed! OpenCAD now opens like a normal app, even offline.', 'cheer', 5000);
+    if (this.landing.visible) this.landing.render();
+  }
+
+  displayName() {
+    return cloud.profileOf(this.user).fullName || this.user?.email?.split('@')[0] || '';
+  }
+
+  /** Public web address for this page (the desktop app links to the website). */
+  webLink(hash = '') {
+    if (location.protocol.startsWith('http')) return `${location.origin}${location.pathname}${hash}`;
+    return `https://tkfam151.github.io/3DCAD/${this.org ? `org/${this.org.slug}/` : 'app/'}${hash}`;
+  }
+
+  confirm(title, body, okLabel = 'OK') {
+    return new Promise((resolve) => {
+      this.modal({
+        title: esc(title),
+        body: `<p>${esc(body)}</p>`,
+        buttons: [{ label: 'Cancel', action: () => resolve(false) }, { label: okLabel, danger: true, action: () => resolve(true) }],
+        onClose: () => resolve(false),
+      });
+    });
+  }
+
+  /** Open someone else's design (a submission or a share link) without linking it to their cloud copy. */
+  openViewOnly(doc, name, bannerText) {
+    this.loadDoc(doc, name);
+    this.setViewBanner(bannerText);
+  }
+
+  setViewBanner(text) {
+    let el = document.getElementById('view-banner');
+    if (!text) { el?.remove(); return; }
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'view-banner';
+      document.getElementById('viewport-wrap').appendChild(el);
+    }
+    el.innerHTML = `${icon('eye')}<span>${esc(text)}</span><span class="vb-note">Changes stay on your computer unless you save your own copy.</span>
+      ${this.user ? '<button class="btn small primary" data-copy-cloud>Save a copy to my cloud</button>' : ''}<button class="icon-btn" data-x title="Dismiss">${icon('close')}</button>`;
+    el.querySelector('[data-x]').onclick = () => el.remove();
+    el.querySelector('[data-copy-cloud]')?.addEventListener('click', () => { el.remove(); this.cloudId = null; this.saveToCloud(); });
+  }
+
+  /** Deep links: #view=<id> (shared design), #join=<code> (class), #add-school. */
+  async handleHash() {
+    if (this._hashHandled) return;
+    this._hashHandled = true;
+    const h = new URLSearchParams(location.hash.replace(/^#/, ''));
+    const clear = () => history.replaceState(null, '', location.pathname + location.search);
+    if (h.get('view')) {
+      clear();
+      try {
+        const d = await cloud.loadSharedDesign(h.get('view'));
+        this.openViewOnly(d.doc, d.name, `Shared design: “${d.name}”`);
+        this.mascot.say('Someone shared this design with you. Look around, or save your own copy to change it.', 'wave', 7000);
+      } catch (e) {
+        this.toast('That shared link doesn’t work any more. The owner may have stopped sharing it.', 'error');
+      }
+    } else if (h.get('join')) {
+      clear();
+      const code = h.get('join');
+      const go = async () => {
+        try {
+          const c = await cloud.joinClass(code, this.displayName());
+          this.toast(`You joined ${c.name}`);
+          this.classes.open({ view: 'class', cls: { ...c, role: c.teacher_id === this.user?.id ? 'teacher' : 'student' } });
+        } catch (e) { this.toast(e.message, 'error'); }
+      };
+      if (this.user) go(); else this.showAuth({ reason: 'Sign in to join the class.', then: go });
+    } else if (location.hash === '#add-school') {
+      clear();
+      this.registerSchool();
+    }
+  }
+
+  async lookupOrg(slug) {
+    try {
+      const o = await cloud.getOrg(slug);
+      if (!o) {
+        this.toast('There’s no school at this address. Find yours in the school directory.', 'error');
+        return;
+      }
+      this.org = { ...o, currency: o.currency || 'THB', printer: 'bambu-a1' };
+      document.body.classList.add('in-org');
+      document.documentElement.style.setProperty('--org', this.org.color || '#3b8cff');
+      this.buildToolbar();
+      if (this.landing.visible) this.landing.render();
+    } catch (e) {
+      this.toast(e.message, 'error');
+    }
+  }
+
+  /** Add a school to the directory; it gets its own address right away. */
+  registerSchool() {
+    if (!cloud.cloudConfigured()) return this.toast('Adding schools needs cloud sign-in, which isn’t set up in this version.', 'error');
+    if (!this.user) return this.showAuth({ reason: 'Sign in to add your school.', then: () => this.registerSchool() });
+    const m = this.modal({
+      title: `${icon('school')} Add your school`,
+      body: `<p class="muted">Your school gets its own OpenCAD space with your name, colour, classes and cloud designs. It appears in the school directory straight away; we mark it ✓ verified after a quick check.</p>
+        <form class="auth-form" novalidate>
+          <label class="auth-row"><span>School name</span><input id="sc-name" maxlength="120" placeholder="e.g. Bangkok Patana School"/></label>
+          <div class="sc-grid">
+            <label class="auth-row"><span>Short name (badge)</span><input id="sc-short" maxlength="12" placeholder="e.g. BPS"/></label>
+            <label class="auth-row"><span>City / country</span><input id="sc-city" maxlength="80" placeholder="e.g. Bangkok, Thailand"/></label>
+            <label class="auth-row"><span>School colour</span><input id="sc-color" type="color" value="#2f6fd0"/></label>
+          </div>
+          <label class="auth-row"><span>Web address</span><div class="sc-url"><span>tkfam151.github.io/3DCAD/org/</span><input id="sc-slug" maxlength="40" placeholder="bangkok-patana"/></div></label>
+          <div class="auth-msg" hidden></div>
+          <button class="btn primary auth-submit" type="submit">Add school</button>
+        </form>`,
+      buttons: [],
+    });
+    const $ = (id) => m.querySelector(id);
+    const msg = m.querySelector('.auth-msg');
+    let slugTouched = false;
+    m.querySelector('form').addEventListener('keydown', (e) => e.stopPropagation());
+    $('#sc-name').oninput = () => {
+      if (!slugTouched) $('#sc-slug').value = slugify($('#sc-name').value);
+      if (!$('#sc-short').dataset.touched) $('#sc-short').value = $('#sc-name').value.split(/\s+/).filter((w) => /^[A-Z0-9]/i.test(w) && !/^(of|the|and|de|la)$/i.test(w)).map((w) => w[0].toUpperCase()).join('').slice(0, 6);
+    };
+    $('#sc-slug').oninput = () => { slugTouched = true; };
+    $('#sc-short').oninput = () => { $('#sc-short').dataset.touched = '1'; };
+    m.querySelector('form').onsubmit = async (e) => {
+      e.preventDefault();
+      const name = $('#sc-name').value.trim(), short = $('#sc-short').value.trim(), slug = slugify($('#sc-slug').value || name);
+      const show = (t) => { msg.hidden = false; msg.textContent = t; };
+      if (name.length < 3) return show('Type the school’s full name.');
+      if (!short) return show('Add a short name for the badge.');
+      if (slug.length < 2) return show('Choose a web address (letters, numbers and dashes).');
+      try {
+        if (await cloud.getOrg(slug)) return show(`The address “${slug}” is already taken. Try another one.`);
+        const o = await cloud.registerOrg({ slug, name, short, city: $('#sc-city').value.trim(), color: $('#sc-color').value });
+        m.closest('.modal-backdrop')?.remove();
+        const url = `https://tkfam151.github.io/3DCAD/org/${o.slug}/`;
+        this.modal({
+          title: `🎉 ${esc(o.name)} is on OpenCAD`,
+          body: `<p>Your school's space is ready:</p><p><a href="${url}" target="_blank" rel="noopener">${esc(url)}</a></p>
+            <p class="muted">Share it with teachers and students. Teachers can create classes there under <b>Classes</b>.</p>`,
+          buttons: [{ label: 'Copy link', action: () => navigator.clipboard?.writeText(url).catch(() => {}) }, { label: 'Done', primary: true }],
+        });
+      } catch (err) { show(err.message); }
+    };
+    setTimeout(() => $('#sc-name').focus(), 20);
+  }
+
+  /** Make a cloud design viewable by anyone with the link. */
+  async shareDesign(id = this.cloudId, name = this.fileName) {
+    if (!this.user) return this.showAuth({ reason: 'Sign in to share designs.', then: () => this.shareDesign() });
+    if (!id) {
+      await this.saveToCloud();
+      id = this.cloudId;
+      name = this.fileName;
+      if (!id) return;
+    }
+    try {
+      await cloud.setShared(id, true);
+    } catch (e) { return this.toast(e.message, 'error'); }
+    const link = this.webLink(`#view=${id}`);
+    const m = this.modal({
+      title: `${icon('export')} Share “${esc(name)}”`,
+      body: `<p>Anyone with this link can view the design and save their own copy. They can't change yours.</p>
+        <div class="share-row"><input id="share-link" readonly value="${esc(link)}"/><button class="btn primary" data-copy>Copy</button></div>`,
+      buttons: [{ label: 'Stop sharing', danger: true, action: async () => { await cloud.setShared(id, false).catch(() => {}); this.toast('Link turned off'); if (this.landing.visible) this.landing.render(); } }, { label: 'Done', primary: true }],
+    });
+    const inp = m.querySelector('#share-link');
+    m.querySelector('[data-copy]').onclick = async () => {
+      try { await navigator.clipboard.writeText(link); this.toast('Link copied'); } catch { inp.select(); }
+    };
+    setTimeout(() => inp.select(), 20);
   }
 
   // ===================== student tools =====================

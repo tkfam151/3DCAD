@@ -12,17 +12,21 @@ title: Schools
 
 <section class="section">
   <div class="wrap">
-    <h2>Directory</h2>
-    <div class="orgs">
+    <div class="dir-head">
+      <h2>Directory</h2>
+      <input id="org-search" type="search" placeholder="Find your school…" aria-label="Find your school"/>
+      <a class="btn primary" href="{{ site.baseurl }}/app/#add-school">+ Add your school</a>
+    </div>
+    <div class="orgs" id="orgs">
       {% for o in site.data.orgs %}
-      <a class="org-card" href="{{ site.baseurl }}/org/{{ o.slug }}/" style="--org: {{ o.color }}">
+      <a class="org-card" data-slug="{{ o.slug }}" href="{{ site.baseurl }}/org/{{ o.slug }}/" style="--org: {{ o.color }}">
         <span class="org-badge">{{ o.short }}</span>
-        <span class="org-text"><strong>{{ o.name }}</strong><span>{{ o.city }}</span></span>
+        <span class="org-text"><strong>{{ o.name }} <span class="verified" title="Verified">✓</span></strong><span>{{ o.city }}</span></span>
         <span class="org-go">Open →</span>
       </a>
       {% endfor %}
     </div>
-    <p class="muted small">Want a space for your school? <a href="{{ site.repo }}/issues/new?title=School%20space%20request">Open an issue on GitHub</a> with the school's name.</p>
+    <p class="muted small" id="orgs-note">Is your school missing? <a href="{{ site.baseurl }}/app/#add-school">Add it in a minute</a>: you get your own address, classes and cloud designs. Teachers sign in with any email.</p>
   </div>
 </section>
 
@@ -38,3 +42,32 @@ title: Schools
     </ul>
   </div>
 </section>
+
+<script>
+  // add schools registered in the app (Supabase) to the built-in list
+  (function () {
+    var list = document.getElementById('orgs');
+    var base = '{{ site.baseurl }}';
+    var esc = function (t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+    fetch('{{ site.supabase_url }}/rest/v1/orgs?select=slug,name,short,city,color,verified&order=name', {
+      headers: { apikey: '{{ site.supabase_key }}', Authorization: 'Bearer {{ site.supabase_key }}' }
+    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (rows) {
+      rows.forEach(function (o) {
+        if (!/^[a-z0-9-]+$/.test(o.slug) || list.querySelector('[data-slug="' + o.slug + '"]')) return;
+        var color = /^#[0-9a-fA-F]{6}$/.test(o.color) ? o.color : '#3b8cff';
+        var a = document.createElement('a');
+        a.className = 'org-card';
+        a.dataset.slug = o.slug;
+        a.href = base + '/org/' + o.slug + '/';
+        a.style.setProperty('--org', color);
+        a.innerHTML = '<span class="org-badge">' + esc(o.short) + '</span><span class="org-text"><strong>' + esc(o.name) +
+          (o.verified ? ' <span class="verified" title="Verified">✓</span>' : '') + '</strong><span>' + esc(o.city) + '</span></span><span class="org-go">Open →</span>';
+        list.appendChild(a);
+      });
+    }).catch(function () {});
+    document.getElementById('org-search').addEventListener('input', function (e) {
+      var q = e.target.value.toLowerCase();
+      list.querySelectorAll('.org-card').forEach(function (c) { c.hidden = q && c.textContent.toLowerCase().indexOf(q) < 0; });
+    });
+  })();
+</script>

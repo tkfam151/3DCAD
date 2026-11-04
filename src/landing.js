@@ -52,6 +52,10 @@ export class Landing {
       <div class="ld-top">
         <div class="ld-brand"><span class="logo">◆</span> OpenCAD Studio${org ? `<span class="org-chip">${esc(org.short)}</span>` : ''}</div>
         <div class="ld-tagline">${org ? `${icon('school')} ${esc(org.name)}` : 'Free parametric 3D design'}</div>
+        <div class="ld-top-actions">
+          <button class="btn small" data-act="install" ${this.app.canInstall ? '' : 'hidden'}>${icon('install')} Install app</button>
+          ${!org ? `<a class="btn small" href="https://tkfam151.github.io/3DCAD/org/" target="_blank" rel="noopener">${icon('school')} Schools</a>` : ''}
+        </div>
         ${cloud.cloudConfigured() ? `<div class="ld-account">${this.app.user
           ? `${icon('user')}<button class="link-btn ld-who" data-act="profile" title="Edit your name and class">${esc(this.app.whoAmI())}</button><button class="btn small" data-act="signout">Sign out</button>`
           : `<button class="btn small" data-act="signin">${icon('user')} Sign in</button>`}</div>` : ''}
@@ -69,6 +73,12 @@ export class Landing {
             <span>Drop a <b>.ocad</b>, <b>.stl</b> or <b>.obj</b> file here</span>
           </div>
           ${this.app.mascot?.hidden ? '<button class="link-btn" data-act="show-pip">Bring back Pip, the helper (H)</button>' : ''}
+          ${cloud.cloudConfigured() ? `<button class="ld-action" data-act="classes">
+            ${icon('school')}<span><b>Classes</b><small>Join with a code, see assignments, hand in</small></span>
+          </button>` : ''}
+          ${cloud.cloudConfigured() && !org ? `<button class="ld-action" data-act="add-school">
+            ${icon('plus')}<span><b>Add your school</b><small>Get a school space with classes</small></span>
+          </button>` : ''}
           <div class="ld-tips">
             <div class="ld-h">Getting started</div>
             <ol>
@@ -174,8 +184,9 @@ export class Landing {
     grid.innerHTML = rows.map((r) => `
       <div class="ld-card" data-cloud-id="${esc(r.id)}" role="button" tabindex="0" title="${esc(r.name)}">
         <div class="ld-thumb">${r.thumb && r.thumb.startsWith('data:image/') ? `<img src="${esc(r.thumb)}" alt=""/>` : icon('cloud')}
-          <span class="ld-kind">Cloud</span>
+          <span class="ld-kind">${r.shared ? 'Shared' : 'Cloud'}</span>
           <button class="ld-remove" data-remove title="Delete from the cloud">${icon('close')}</button>
+          <button class="ld-share" data-share title="Share a view-only link">${icon('link')}</button>
         </div>
         <div class="ld-meta"><b>${esc(r.name)}</b><span>${timeAgo(new Date(r.updated_at).getTime())}</span></div>
       </div>`).join('');
@@ -185,6 +196,11 @@ export class Landing {
         if (e.target.closest('[data-remove]')) {
           e.stopPropagation();
           if (await this.app.deleteCloudDesign(row.id, row.name)) this.loadCloud();
+          return;
+        }
+        if (e.target.closest('[data-share]')) {
+          e.stopPropagation();
+          this.app.shareDesign(row.id, row.name);
           return;
         }
         this.app.openCloudDesign(row.id);
@@ -215,6 +231,9 @@ export class Landing {
     else if (act === 'clear-recents') { clearRecents(); this.render(); }
     else if (act === 'signin') a.showAuth();
     else if (act === 'profile') a.editProfile();
+    else if (act === 'classes') a.classes.open();
+    else if (act === 'add-school') a.registerSchool();
+    else if (act === 'install') a.installApp();
     else if (act === 'signout') a.doSignOut();
     else if (act === 'show-pip') { a.mascot.setHidden(false); this.render(); }
   }
