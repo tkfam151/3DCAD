@@ -176,7 +176,14 @@ export async function orgAdmin(action, payload = {}) {
   const { data, error } = await sb().functions.invoke('org-admin', { body: { action, ...payload } });
   if (error) {
     let msg = error.message;
-    try { const body = await error.context?.json?.(); if (body?.error) msg = body.error; } catch { /* keep msg */ }
+    try {
+      const res = error.context;
+      if (res && typeof res.text === 'function') {
+        const text = await res.text();
+        let body = null; try { body = JSON.parse(text); } catch { /* not JSON */ }
+        msg = body?.error || body?.message || body?.msg || `${msg} (${res.status}${text ? ': ' + text.slice(0, 200) : ''})`;
+      }
+    } catch { /* keep msg */ }
     if (/failed to send|not found|404|FunctionsFetchError|FunctionsRelayError/i.test(msg)) {
       msg = 'Couldn’t reach the account manager (' + msg + '). In Supabase → Edge Functions → org-admin, check it is deployed and that "Verify JWT with legacy secret" is OFF, then sign out and back in.';
     }
