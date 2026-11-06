@@ -178,7 +178,7 @@ export async function orgAdmin(action, payload = {}) {
     let msg = error.message;
     try { const body = await error.context?.json?.(); if (body?.error) msg = body.error; } catch { /* keep msg */ }
     if (/failed to send|not found|404|FunctionsFetchError|FunctionsRelayError/i.test(msg)) {
-      msg = 'The account manager isn’t set up yet. The app owner needs to deploy the org-admin function (see the README).';
+      msg = 'Couldn’t reach the account manager (' + msg + '). In Supabase → Edge Functions → org-admin, check it is deployed and that "Verify JWT with legacy secret" is OFF, then sign out and back in.';
     }
     throw new Error(msg);
   }
