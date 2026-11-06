@@ -1,6 +1,6 @@
 // Sign-in and cloud saving with Supabase.
 import { createClient } from '@supabase/supabase-js';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './cloud-config.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, ORG_ADMIN_FUNCTION } from './cloud-config.js';
 
 const url = import.meta.env?.VITE_SUPABASE_URL || SUPABASE_URL;
 const key = import.meta.env?.VITE_SUPABASE_ANON_KEY || SUPABASE_ANON_KEY;
@@ -173,7 +173,11 @@ export async function deleteOrg(slug) {
  * action: list | create | update | remove | deleteAccount | setOwner
  */
 export async function orgAdmin(action, payload = {}) {
-  const { data, error } = await sb().functions.invoke('org-admin', { body: { action, ...payload } });
+  let { data, error } = await sb().functions.invoke(ORG_ADMIN_FUNCTION, { body: { action, ...payload } });
+  if (error && error.context?.status === 404 && ORG_ADMIN_FUNCTION !== 'org-admin') {
+    // deployed with the CLI / GitHub workflow instead, under its own name
+    ({ data, error } = await sb().functions.invoke('org-admin', { body: { action, ...payload } }));
+  }
   if (error) {
     let msg = error.message;
     try {
