@@ -24,20 +24,48 @@ export const usernameEmail = (username: string, org: string) => `${username}@${o
 const USERNAME = /^[a-z0-9][a-z0-9._-]{1,30}$/;
 const ROLES = ['owner', 'teacher', 'student'];
 
+// Supabase gives functions the project keys. Newer projects use sb_secret_/sb_publishable_ keys
+// (SUPABASE_SECRET_KEYS / SUPABASE_PUBLISHABLE_KEYS, JSON by name); older ones the legacy JWT keys.
+const pickKey = (jsonVar: string, legacyVar: string) => {
+  try {
+    const all = JSON.parse(Deno.env.get(jsonVar) || '{}');
+    const k = all.default || Object.values(all)[0];
+    if (typeof k === 'string' && k) return k;
+  } catch { /* not set */ }
+  return Deno.env.get(legacyVar) || '';
+};
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return fail('Use POST', 405);
+  try {
+    return await handle(req);
+  } catch (e) {
+    return fail('Account manager error: ' + ((e as Error)?.message || String(e)), 500);
+  }
+});
 
-  const url = Deno.env.get('SUPABASE_URL')!;
-  const service = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const admin = createClient(url, service, { auth: { persistSession: false, autoRefreshToken: false } });
+async function handle(req: Request): Promise<Response> {
+  const url = Deno.env.get('SUPABASE_URL') || '';
+  const secret = pickKey('SUPABASE_SECRET_KEYS', 'SUPABASE_SERVICE_ROLE_KEY');
+  const publishable = pickKey('SUPABASE_PUBLISHABLE_KEYS', 'SUPABASE_ANON_KEY');
+  if (!url || !secret) return fail('The function has no Supabase secret key. Redeploy it from the Supabase dashboard.', 500);
+  const opts = { auth: { persistSession: false, autoRefreshToken: false } };
+  const admin = createClient(url, secret, opts);
 
-  // who is calling?
-  const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
-  const { data: who, error: whoErr } = await admin.auth.getUser(token);
-  if (whoErr || !who?.user) return fail('Please sign in again.', 401);
-  const caller = who.user;
-  const isAdmin = (caller.email || '').toLowerCase() === ADMIN_EMAIL && !!caller.email_confirmed_at;
+  // who is calling? (try the admin client, then the caller's own token as a normal client)
+  const authHeader = req.headers.get('Authorization') || '';
+  const token = authHeader.replace(/^Bearer\s+/i, '');
+  if (!token || token === publishable) return fail('Please sign in first.', 401);
+  let caller = (await admin.auth.getUser(token)).data?.user ?? null;
+  if (!caller && publishable) {
+    const asUser = createClient(url, publishable, { ...opts, global: { headers: { Authorization: authHeader } } });
+    caller = (await asUser.auth.getUser()).data?.user ?? null;
+  }
+  if (!caller) return fail('Please sign out and sign in again.', 401);
+  const email = (caller.email || '').toLowerCase();
+  const isAdmin = email === ADMIN_EMAIL && !!(caller.email_confirmed_at || (caller as any).confirmed_at);
+  if (email === ADMIN_EMAIL && !isAdmin) return fail('Please confirm your email first (check your inbox for the Supabase link).', 403);
 
   let body: Record<string, any>;
   try { body = await req.json(); } catch { return fail('Bad request'); }
@@ -158,4 +186,4 @@ Deno.serve(async (req) => {
   } catch (e) {
     return fail((e as Error).message || 'Something went wrong');
   }
-});
+}
