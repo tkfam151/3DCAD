@@ -16,7 +16,9 @@ import { addRecent } from './recents.js';
 import { Mascot } from './mascot.js';
 import { featureHandles } from './handles.js';
 import * as cloud from './cloud.js';
-import { currentOrg, orgSlugFromPath, slugify } from './org.js';
+import { currentOrg, slugify, pageMode, usernameEmail } from './org.js';
+import { OrgGate, PeopleUI, openSchoolSettings, openMySchool, roleLabel } from './org-ui.js';
+import { AdminUI } from './admin-ui.js';
 import { ClassesUI } from './classes-ui.js';
 import { zipSync, strToU8 } from 'fflate';
 import { PRINTERS, MATERIALS, printReport, printReportText, formatHours, formatMoney, JOURNAL_SECTIONS, journalMarkdown, LESSONS } from './student.js';
@@ -88,11 +90,12 @@ export class App {
     this.vp.onGizmoEnd = (delta, bodyId) => this.onGizmoEnd(delta, bodyId);
     this.sketcher = new Sketcher(this.vp, this.el.panel);
 
-    this.org = currentOrg();
-    if (this.org) {
-      document.body.classList.add('in-org');
-      document.documentElement.style.setProperty('--org', this.org.color || '#c8102e');
-    }
+    // which page: normal app (dark), school staff / student page or admin panel (white)
+    this.page = pageMode();
+    this.membership = null;
+    this.org = this.page.slug ? currentOrg() : null;
+    if (this.page.mode !== 'normal') document.body.classList.add('theme-light');
+    if (this.org) this.applyOrgLook();
     this.buildToolbar();
     this.buildViewbar();
     this.bindViewportEvents();
@@ -109,8 +112,7 @@ export class App {
 
     this.landing = new Landing(this);
     this.classes = new ClassesUI(this);
-    if (!this.org && orgSlugFromPath() && cloud.cloudConfigured()) this.lookupOrg(orgSlugFromPath());
-    if (cloud.cloudConfigured()) {
+    if (cloud.cloudConfigured() && this.page.mode === 'normal') {
       cloud.currentUser().then((u) => { this.user = u; if (this.landing.visible) this.landing.render(); this.handleHash(); }).catch(() => this.handleHash());
       cloud.onAuthChange((u) => {
         const changed = (u?.id || null) !== (this.user?.id || null);
@@ -121,7 +123,25 @@ export class App {
     this.bindDragDrop();
     this.regen();
     this.vp.setView('iso');
-    this.landing.show();
+    if (this.page.mode === 'admin') {
+      new AdminUI(this).start();
+    } else if (this.page.mode === 'staff' || this.page.mode === 'student') {
+      this.landing.show();
+      this.gate = new OrgGate(this);
+      this.gate.run().then(({ role, membership, admin }) => {
+        this.membership = { role, admin, ...(membership || {}) };
+        this.buildToolbar();
+        this.landing.render();
+        cloud.onAuthChange((u) => {
+          if (!u && this.user) location.reload(); // signed out: back to the school's sign-in
+          this.user = u;
+        });
+        this.handleHash();
+        this.mascot.say(`Welcome, <b>${esc(this.displayName())}</b>! ${this.page.mode === 'student' ? 'Your classes are on the left.' : 'Manage classes and people from the start screen.'}`, 'wave', 6000);
+      });
+    } else {
+      this.landing.show();
+    }
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       this._installEvent = e;
@@ -344,7 +364,7 @@ export class App {
         ['measure', 'Measure', 'measure', 'I'], ['params', 'Parameters', 'params'], ['printCheck', 'Print check', 'print'],
       ] },
       { title: 'Class', items: [
-        ['lessons', 'Lessons', 'lesson'], ['classes', 'Classes', 'school'], ['journal', 'Journal', 'journal'], ['handIn', 'Hand in', 'handin'],
+        ['lessons', 'Lessons', 'lesson'], ...(this.page?.slug ? [['classes', 'Classes', 'school']] : []), ['journal', 'Journal', 'journal'], ['handIn', 'Hand in', 'handin'],
       ] },
       { title: 'Edit', items: [['undo', 'Undo', 'undo'], ['redo', 'Redo', 'redo']] },
     ];
@@ -410,7 +430,7 @@ export class App {
   command(cmd, arg) {
     if (cmd.startsWith('view:')) { this.vp.resetUp(); return this.vp.setView(cmd.slice(5)); }
     if (cmd.startsWith('toggle:')) return this.toggleDisplay(cmd.slice(7));
-    if (this.landing.visible && !['new', 'open', 'openFile', 'examples', 'about', 'shortcuts', 'home', 'mascot', 'signIn', 'signOut', 'lessons', 'profile', 'classes', 'addSchool'].includes(cmd)) return;
+    if (this.landing.visible && !['new', 'open', 'openFile', 'examples', 'about', 'shortcuts', 'home', 'mascot', 'signIn', 'signOut', 'lessons', 'profile', 'classes', 'addSchool', 'people', 'schoolSettings', 'mySchool'].includes(cmd)) return;
     if (FEATURES[cmd] && cmd !== 'sketch' && cmd !== 'importMesh') return this.createFeature(cmd);
     switch (cmd) {
       case 'new': return this.newDoc();
@@ -428,7 +448,10 @@ export class App {
       case 'mascot': return this.mascot.toggle();
       case 'cloudSave': return this.saveToCloud();
       case 'printCheck': return this.openPrintCheck();
-      case 'classes': return this.classes.open();
+      case 'classes': return this.page.slug ? this.classes.open() : this.toast('Classes are on your school’s page. Use “My school” on the start screen.');
+      case 'people': return this.isOwner() ? new PeopleUI(this).open() : null;
+      case 'schoolSettings': return this.isOwner() ? openSchoolSettings(this) : null;
+      case 'mySchool': return openMySchool(this);
       case 'addSchool': return this.registerSchool();
       case 'share': return this.shareDesign();
       case 'journal': return this.openJournal();
@@ -1769,7 +1792,8 @@ export class App {
   /** "Tonkla · 9B · Singapore International School of Bangkok" */
   whoAmI() {
     const p = cloud.profileOf(this.user);
-    return [p.fullName || this.user?.email, p.className, this.org?.name].filter(Boolean).join(' · ');
+    const role = this.membership ? roleLabel(this.membership.admin ? 'admin' : this.membership.role) : '';
+    return [this.membership?.display_name || p.fullName || this.user?.email, role, p.className, this.org?.name].filter(Boolean).join(' · ');
   }
 
   accountMenu() {
@@ -1830,7 +1854,7 @@ export class App {
   }
 
   displayName() {
-    return cloud.profileOf(this.user).fullName || this.user?.email?.split('@')[0] || '';
+    return this.membership?.display_name || cloud.profileOf(this.user).fullName || this.user?.email?.split('@')[0] || '';
   }
 
   /** Public web address for this page (the desktop app links to the website). */
@@ -1902,22 +1926,59 @@ export class App {
     }
   }
 
-  async lookupOrg(slug) {
+  async lookupOrg(slug, { quiet = false } = {}) {
     try {
       const o = await cloud.getOrg(slug);
       if (!o) {
-        this.toast('There’s no school at this address. Find yours in the school directory.', 'error');
+        if (!quiet) this.toast('There’s no school at this address. Find yours in the school directory.', 'error');
         return;
       }
       this.org = { ...o, currency: o.currency || 'THB', printer: 'bambu-a1' };
-      document.body.classList.add('in-org');
-      document.documentElement.style.setProperty('--org', this.org.color || '#3b8cff');
+      this.applyOrgLook();
       this.buildToolbar();
       if (this.landing.visible) this.landing.render();
     } catch (e) {
-      this.toast(e.message, 'error');
+      if (!quiet) this.toast(e.message, 'error');
     }
   }
+
+  applyOrgLook() {
+    document.body.classList.add('in-org');
+    document.documentElement.style.setProperty('--org', /^#[0-9a-f]{6}$/i.test(this.org?.color || '') ? this.org.color : '#3b8cff');
+    if (this.landing?.visible) this.landing.render();
+  }
+
+  /** What to send to sign-in: an email as typed, or a school username turned into its account address. */
+  loginEmail(id) {
+    const v = String(id).trim();
+    if (v.includes('@') || !this.page.slug) return v;
+    return usernameEmail(v, this.page.slug);
+  }
+
+  /** Address of a page in this school, e.g. orgLink('student/'). */
+  orgLink(sub = '') {
+    return `https://tkfam151.github.io/3DCAD/org/${this.org?.slug || this.page.slug}/${sub}`;
+  }
+
+  /** Small one-field prompt; resolves to the text or null. */
+  askText(title, placeholder = '', action = 'OK') {
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = (v) => { if (!done) { done = true; resolve(v); } };
+      const m = this.modal({ title: esc(title), body: `<input class="prompt-input" id="ask-text" placeholder="${esc(placeholder)}" autocomplete="off"/>`, buttons: [], onClose: () => finish(null) });
+      const inp = m.querySelector('#ask-text');
+      const close = () => m.closest('.modal-backdrop')?.remove();
+      const foot = m.querySelector('.modal-foot');
+      const c = document.createElement('button'); c.className = 'btn'; c.textContent = 'Cancel'; c.onclick = () => { close(); finish(null); };
+      const ok = document.createElement('button'); ok.className = 'btn primary'; ok.textContent = action; ok.onclick = () => { close(); finish(inp.value.trim() || null); };
+      foot.append(c, ok);
+      inp.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') ok.click(); if (e.key === 'Escape') c.click(); });
+      setTimeout(() => inp.focus(), 20);
+    });
+  }
+
+  isOwner() { return !!(this.membership && (this.membership.admin || this.membership.role === 'owner')); }
+  isStaff() { return !!(this.membership && (this.membership.admin || ['owner', 'teacher'].includes(this.membership.role))); }
 
   /** Add a school to the directory; it gets its own address right away. */
   registerSchool() {
@@ -1925,7 +1986,7 @@ export class App {
     if (!this.user) return this.showAuth({ reason: 'Sign in to add your school.', then: () => this.registerSchool() });
     const m = this.modal({
       title: `${icon('school')} Add your school`,
-      body: `<p class="muted">Your school gets its own OpenCAD space with your name, colour, classes and cloud designs. It appears in the school directory straight away; we mark it ✓ verified after a quick check.</p>
+      body: `<p class="muted">Your school gets its own OpenCAD space: a staff page for owners and teachers, a student page, classes and cloud designs. You'll be its owner and can add teachers and students.</p>
         <form class="auth-form" novalidate>
           <label class="auth-row"><span>School name</span><input id="sc-name" maxlength="120" placeholder="e.g. Bangkok Patana School"/></label>
           <div class="sc-grid">
@@ -1934,6 +1995,10 @@ export class App {
             <label class="auth-row"><span>School colour</span><input id="sc-color" type="color" value="#2f6fd0"/></label>
           </div>
           <label class="auth-row"><span>Web address</span><div class="sc-url"><span>tkfam151.github.io/3DCAD/org/</span><input id="sc-slug" maxlength="40" placeholder="bangkok-patana"/></div></label>
+          <div class="sc-grid sc-grid-2">
+            <label class="auth-row"><span>School password</span><input id="sc-pw" type="text" autocomplete="off" placeholder="Everyone at your school enters this"/></label>
+            <label class="auth-row"><span>School creation code</span><input id="sc-code" type="text" autocomplete="off" placeholder="From the OpenCAD admin"/></label>
+          </div>
           <div class="auth-msg" hidden></div>
           <button class="btn primary auth-submit" type="submit">Add school</button>
         </form>`,
@@ -1956,15 +2021,19 @@ export class App {
       if (name.length < 3) return show('Type the school’s full name.');
       if (!short) return show('Add a short name for the badge.');
       if (slug.length < 2) return show('Choose a web address (letters, numbers and dashes).');
+      if ($('#sc-pw').value.length < 6) return show('Choose a school password with at least 6 characters.');
+      if (!$('#sc-code').value.trim()) return show('Type the school creation code. Ask the OpenCAD admin for it.');
       try {
         if (await cloud.getOrg(slug)) return show(`The address “${slug}” is already taken. Try another one.`);
-        const o = await cloud.registerOrg({ slug, name, short, city: $('#sc-city').value.trim(), color: $('#sc-color').value });
+        const o = await cloud.createOrg({ slug, name, short, city: $('#sc-city').value.trim(), color: $('#sc-color').value, password: $('#sc-pw').value, code: $('#sc-code').value.trim() });
         m.closest('.modal-backdrop')?.remove();
         const url = `https://tkfam151.github.io/3DCAD/org/${o.slug}/`;
         this.modal({
           title: `🎉 ${esc(o.name)} is on OpenCAD`,
-          body: `<p>Your school's space is ready:</p><p><a href="${url}" target="_blank" rel="noopener">${esc(url)}</a></p>
-            <p class="muted">Share it with teachers and students. Teachers can create classes there under <b>Classes</b>.</p>`,
+          body: `<p>Your school's pages are ready. You're the owner.</p>
+            <p><b>Staff page</b> (you and teachers): <a href="${url}" target="_blank" rel="noopener">${esc(url)}</a><br/>
+            <b>Student page</b>: <a href="${url}student/" target="_blank" rel="noopener">${esc(url)}student/</a></p>
+            <p class="muted">Both ask for the school password. Open the staff page, sign in with this account, then use <b>People</b> to add teachers and students with usernames.</p>`,
           buttons: [{ label: 'Copy link', action: () => navigator.clipboard?.writeText(url).catch(() => {}) }, { label: 'Done', primary: true }],
         });
       } catch (err) { show(err.message); }
@@ -1987,11 +2056,27 @@ export class App {
     const link = this.webLink(`#view=${id}`);
     const m = this.modal({
       title: `${icon('export')} Share “${esc(name)}”`,
-      body: `<p>Anyone with this link can view the design and save their own copy. They can't change yours.</p>
+      body: `${this.page.slug ? `<h4 class="share-h">Share with a class</h4>
+        <p class="muted small">Your teacher and classmates in that class can open it. They can't change yours.</p>
+        <div class="share-row"><select id="share-class"><option value="">Not shared with a class</option></select><button class="btn" data-class-save>Save</button></div>
+        <h4 class="share-h">Or share a link</h4>` : ''}
+        <p>Anyone with this link can view the design and save their own copy. They can't change yours.</p>
         <div class="share-row"><input id="share-link" readonly value="${esc(link)}"/><button class="btn primary" data-copy>Copy</button></div>`,
       buttons: [{ label: 'Stop sharing', danger: true, action: async () => { await cloud.setShared(id, false).catch(() => {}); this.toast('Link turned off'); if (this.landing.visible) this.landing.render(); } }, { label: 'Done', primary: true }],
     });
     const inp = m.querySelector('#share-link');
+    const sel = m.querySelector('#share-class');
+    if (sel) {
+      cloud.myClasses(this.org?.slug || this.page.slug).then(({ teaching, joined }) => {
+        for (const c of [...joined, ...teaching]) sel.add(new Option(c.name, c.id));
+      }).catch(() => {});
+      m.querySelector('[data-class-save]').onclick = async () => {
+        try {
+          await cloud.setSharedClass(id, sel.value || null);
+          this.toast(sel.value ? `Shared with ${sel.selectedOptions[0].textContent}` : 'Not shared with a class');
+        } catch (e) { this.toast(e.message, 'error'); }
+      };
+    }
     m.querySelector('[data-copy]').onclick = async () => {
       try { await navigator.clipboard.writeText(link); this.toast('Link copied'); } catch { inp.select(); }
     };

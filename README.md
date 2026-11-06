@@ -17,8 +17,8 @@ sketch → extrude/revolve → modify, with every step recorded on an editable *
 | **3D text** | Click **Text** in the toolbar, type your words and set letter height and thickness to get solid 3D letters. **Join** them onto a part for raised lettering or **Cut** to engrave; drag the arrows to resize. There's also a Text tool inside Sketch (**A**) for text on sketched profiles. |
 | **Sign in & cloud save** | Create an account with email and password, click **Cloud** to save, and reopen your designs from the start screen on any computer, in the app or the website. Powered by Supabase. |
 | **For students** | **Print check** (fits the printer? sits flat? needs supports? grams, time and cost), **Drop to bed**, a **Design journal** following the MYP design cycle, **Hand in** (one ZIP with design, STL, 4 screenshots, journal and print check) and step-by-step **Lessons** with Pip. |
-| **School spaces** | Any teacher can **add their school** (start screen → *Add your school*). It appears in the directory at **/3DCAD/org/** and gets its own address like **/3DCAD/org/sisb/** with the school's name and colour, “name · class · school” when signed in, and school cloud designs. |
-| **Classes & assignments** | Teachers create a class and share its **join code** or invite link, then post assignments with instructions and due dates. Students **hand in** their design in one click; teachers open each submission, leave **feedback and a grade**, and students see it. |
+| **School spaces** | Schools are added with a creation code from the admin and get a password-protected staff page and student page with the school's name and colour. Owners create teacher and student accounts (usernames); see **Schools and organisations** below. |
+| **Classes & assignments** | On school pages: teachers create classes, add students or share a join code, and post assignments with due dates. Students hand in their design in one click; teachers give **feedback and a grade**. Students can share designs with their class. |
 | **Share links** | Share a view-only link to any cloud design. Anyone can open it and save their own copy. |
 | **Install & offline** | Install the website as an app (Chrome/Edge: *Install app*; iPad: *Add to Home Screen*). It keeps working offline. |
 | **Drag to resize** | Double-click a shape (or click its timeline step) and drag the blue arrows to change its width, depth, height, radius or extrude distance live. Hold ⇧ for 0.1 mm steps or ⌥ for no snapping. |
@@ -167,42 +167,57 @@ src/cloud.js     sign-in and cloud saving (Supabase)
 src/student.js   print check, design journal, lessons
 src/org.js       school spaces (src/orgs.json + registered schools)
 src/classes-ui.js classes, assignments, hand-ins and grading
+src/org-ui.js    school password door, sign-in, People, School settings, My school
+src/admin-ui.js  the admin panel
+supabase/functions/org-admin  account manager (runs on Supabase)
+tests/db/        migrations + permission tests on PostgreSQL
 supabase/        database migrations (designs table + security rules)
 tests/           kernel tests (node --test)
 site/            project website (Jekyll); the web app is added at /app/ when it's published
 ```
 
-## School spaces
+## Schools and organisations
 
-Teachers add schools themselves from the app; they're stored in the `orgs` table and work at
-`/3DCAD/org/<slug>/` right away (GitHub Pages serves the app from `404.html` for those addresses).
-Built-in schools are listed in `src/orgs.json` (slug, name, short name, city, colour, currency, default printer).
-On each deploy the web app is published at `https://tkfam151.github.io/3DCAD/org/<slug>/` and the
-directory page `https://tkfam151.github.io/3DCAD/org/` lists every school. To add a school, add an
-entry to `src/orgs.json` and push.
+| Page | Who | What |
+| --- | --- | --- |
+| `/3DCAD/app/` | everyone | The normal app (dark). Guests can model and export; signed-in people save to the cloud. **My school** opens a school's page; **Add your school** needs the school creation code. No classes here. |
+| `/3DCAD/org/<school>/` | owners & teachers | Staff page (white). Asks for the **school password**, then sign-in. Classes (teachers create their own; the owner sees all), **People** and **School settings** for the owner. |
+| `/3DCAD/org/<school>/student/` | students | Student page (white). School password, then the **username** the owner made. Join or get assigned to classes, design, hand in, share with the class. Students can't create classes. |
+| `/3DCAD/admin/` | the site admin only | Every school (verify, password, owner, delete), every account (add, reset password, delete) and the **school creation code**. |
+
+Roles: **admin** (`tonklapc.toogle@gmail.com`, everything) · **owner** (made the school; manages its people) · **teacher** (own classes) · **student**.
+Designs are private unless shared with a link or with a class. The desktop apps have an **Organisation** button that opens a school's page.
+
+The rules live in the database (`supabase/migrations/`) and are tested on a real PostgreSQL with
+`tests/db/run.sh` (40 checks of who can see and change what). Accounts are created and changed only by
+the `org-admin` Edge Function, which keeps Supabase's secret key on the server.
+
+Built-in schools are listed in `src/orgs.json`; schools added in the app work at `/3DCAD/org/<slug>/`
+right away (GitHub Pages serves the app from `404.html` for those addresses).
 
 ## Cloud saving (Supabase) setup
 
-Sign-in and cloud saving use a [Supabase](https://supabase.com) project.
+**Easiest: let GitHub do it.** Add two repository secrets (**Settings → Secrets and variables → Actions → New repository secret**):
 
-1. **Database table:** `supabase/migrations/20261103090000_designs.sql` creates the `designs` table with
-   row level security, so each user can only read and change their own designs. If your Supabase project is
-   linked to this GitHub repo, the migration is applied when it reaches the production branch. Otherwise,
-   paste the file into **Supabase → SQL Editor** and click **Run**.
-   Then run `supabase/migrations/20261104090000_designs_org.sql` and
-   `supabase/migrations/20261105090000_schools_classes.sql` the same way. They add school spaces, the
-   school directory, classes, assignments, submissions and share links, each with row level security
-   (students only see their own work; teachers see submissions for their own classes).
-   To mark a school as verified, run `update public.orgs set verified = true where slug = '…';` in the SQL Editor.
-2. **App keys:** copy the **Project URL** and the **anon / publishable key** from **Project Settings → API**
-   and put them in `src/cloud-config.js`, or set the repository variables `SUPABASE_URL` and
-   `SUPABASE_ANON_KEY` (**Settings → Secrets and variables → Actions → Variables**). These two values are
-   meant to be public. **Never** put the database password or the `service_role` key in the app.
-3. **Email links:** in **Supabase → Authentication → URL Configuration**, set the Site URL to
-   `https://tkfam151.github.io/3DCAD/app/` and add it to the Redirect URLs, so confirmation and
-   password-reset emails open the web app.
+| Secret | Where to get it |
+| --- | --- |
+| `SUPABASE_ACCESS_TOKEN` | supabase.com → Account → **Access Tokens** → Generate new token |
+| `SUPABASE_DB_PASSWORD` | your project's database password (reset it in **Project Settings → Database** if you've shared it anywhere) |
 
-Until the keys are set, the app works normally and simply hides the sign-in and Cloud buttons.
+Then run the **Supabase (database + account manager)** workflow from the Actions tab (or push any change in
+`supabase/`). It applies every file in `supabase/migrations/` and deploys the `org-admin` function.
+
+**By hand instead:** paste each file in `supabase/migrations/` into **SQL Editor** in name order and click **Run**
+(they're safe to run again), then deploy the function with the Supabase CLI:
+`supabase functions deploy org-admin --project-ref lfplpizvmcgvvvvpgomv`.
+
+Then, once:
+1. **Authentication → Providers → Email:** keep **Confirm email** on. The admin is recognised by a confirmed email address.
+2. **Authentication → URL Configuration:** Site URL `https://tkfam151.github.io/3DCAD/app/` (also add it to Redirect URLs).
+3. Sign in at `https://tkfam151.github.io/3DCAD/admin/` as the admin and set the **school creation code** under Settings.
+
+The app's public keys are in `src/cloud-config.js` (or the `SUPABASE_URL` / `SUPABASE_ANON_KEY` repository
+variables). Never put the database password or the `service_role` key in the app.
 
 ## Credits
 

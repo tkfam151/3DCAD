@@ -1,0 +1,6 @@
+# Supabase CLI settings for OpenCAD Studio (used by the "Supabase" GitHub workflow).
+project_id = "3DCAD"
+
+[functions.org-admin]
+# the function checks the caller's sign-in itself
+verify_jwt = true

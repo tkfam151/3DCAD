@@ -73,12 +73,7 @@ export class Landing {
             <span>Drop a <b>.ocad</b>, <b>.stl</b> or <b>.obj</b> file here</span>
           </div>
           ${this.app.mascot?.hidden ? '<button class="link-btn" data-act="show-pip">Bring back Pip, the helper (H)</button>' : ''}
-          ${cloud.cloudConfigured() ? `<button class="ld-action" data-act="classes">
-            ${icon('school')}<span><b>Classes</b><small>Join with a code, see assignments, hand in</small></span>
-          </button>` : ''}
-          ${cloud.cloudConfigured() && !org ? `<button class="ld-action" data-act="add-school">
-            ${icon('plus')}<span><b>Add your school</b><small>Get a school space with classes</small></span>
-          </button>` : ''}
+          ${this.schoolActions()}
           <div class="ld-tips">
             <div class="ld-h">Getting started</div>
             <ol>
@@ -208,6 +203,28 @@ export class Landing {
     });
   }
 
+  /** Buttons that depend on the page: normal app, student page or staff page. */
+  schoolActions() {
+    const a = this.app;
+    if (!cloud.cloudConfigured() && !a.api) return '';
+    const btn = (act, ic, title, sub) => `<button class="ld-action" data-act="${act}">${icon(ic)}<span><b>${title}</b><small>${sub}</small></span></button>`;
+    if (a.page.mode === 'student') {
+      return btn('classes', 'school', 'My classes', 'Join with a code, see assignments, hand in, see what classmates shared');
+    }
+    if (a.page.mode === 'staff') {
+      return [
+        btn('classes', 'school', 'Classes', a.isOwner() ? 'Every class in the school, assignments and grading' : 'Your classes, assignments and grading'),
+        a.isOwner() ? btn('people', 'user', 'People', 'Add students and teachers, reset passwords') : '',
+        a.isOwner() ? btn('school-settings', 'params', 'School settings', 'Name, colour and school password') : '',
+      ].join('');
+    }
+    // normal app: no classes here, only getting to or adding a school
+    return [
+      btn('my-school', 'school', a.api ? 'Organisation' : 'My school', 'Open your school’s page (students and teachers)'),
+      cloud.cloudConfigured() ? btn('add-school', 'plus', 'Add your school', 'Needs a school creation code from the OpenCAD admin') : '',
+    ].join('');
+  }
+
   recentCard(r) {
     const kind = r.kind || 'ocad';
     const unavailable = !r.path && !r.doc;
@@ -232,6 +249,9 @@ export class Landing {
     else if (act === 'signin') a.showAuth();
     else if (act === 'profile') a.editProfile();
     else if (act === 'classes') a.classes.open();
+    else if (act === 'people') a.command('people');
+    else if (act === 'school-settings') a.command('schoolSettings');
+    else if (act === 'my-school') a.command('mySchool');
     else if (act === 'add-school') a.registerSchool();
     else if (act === 'install') a.installApp();
     else if (act === 'signout') a.doSignOut();

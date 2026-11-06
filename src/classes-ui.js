@@ -47,26 +47,46 @@ export class ClassesUI {
   // ---------- all my classes ----------
   async renderList() {
     const a = this.app;
+    const staff = a.isStaff();
     const { teaching, joined } = await cloud.myClasses(a.org?.slug || null);
+    // on the staff page an owner also sees other teachers' classes (and manages them)
+    const others = staff ? joined : [];
+    const mine = staff ? teaching : [];
+    const studentClasses = staff ? [] : joined;
     const card = (c, role) => `<button class="cl-card" data-class="${c.id}" data-role="${role}">
-        <b>${esc(c.name)}</b><span>${role === 'teacher' ? `You teach · code <code>${esc(c.join_code)}</code>` : `Teacher: ${esc(c.teacher_name || '—')}`}</span></button>`;
-    this.body.innerHTML = `
+        <b>${esc(c.name)}</b><span>${role === 'teacher'
+          ? `${c.teacher_id === a.user?.id ? 'You teach' : `Teacher: ${esc(c.teacher_name || '—')}`} · code <code>${esc(c.join_code)}</code>`
+          : `Teacher: ${esc(c.teacher_name || '—')}`}</span></button>`;
+    this.body.innerHTML = staff ? `
+      <div class="cl-cols">
+        <section>
+          <h3>${icon('school')} Your classes</h3>
+          <form class="cl-new"><input id="cl-name" maxlength="80" placeholder="New class, e.g. Year 9 Design" autocomplete="off"/><button class="btn primary" type="submit">Create</button></form>
+          <div class="cl-msg auth-msg" hidden></div>
+          ${mine.length ? `<div class="cl-list">${mine.map((c) => card(c, 'teacher')).join('')}</div>` : '<p class="muted small">Create a class, then add students to it or share its join code.</p>'}
+        </section>
+        <section>
+          <h3>${icon('user')} ${a.isOwner() ? 'Other classes in the school' : 'About classes'}</h3>
+          ${a.isOwner()
+            ? (others.length ? `<div class="cl-list">${others.map((c) => card(c, 'teacher')).join('')}</div>` : '<p class="muted small">Classes other teachers create show up here.</p>')
+            : '<p class="muted small">Students can’t create classes. Add them to your class from the class page, or give them the join code.</p>'}
+        </section>
+      </div>` : `
       <div class="cl-cols">
         <section>
           <h3>${icon('user')} Join a class</h3>
           <form class="cl-join"><input id="cl-code" maxlength="8" placeholder="Code from your teacher, e.g. 7F3K2A" autocomplete="off"/><button class="btn primary" type="submit">Join</button></form>
           <div class="cl-msg auth-msg" hidden></div>
-          ${joined.length ? `<div class="cl-list">${joined.map((c) => card(c, 'student')).join('')}</div>` : '<p class="muted small">Classes you join will appear here.</p>'}
+          <p class="muted small">Or your teacher can add you to a class.</p>
         </section>
         <section>
-          <h3>${icon('school')} Teach a class</h3>
-          <form class="cl-new"><input id="cl-name" maxlength="80" placeholder="Class name, e.g. Year 9 Design" autocomplete="off"/><button class="btn" type="submit">Create</button></form>
-          ${teaching.length ? `<div class="cl-list">${teaching.map((c) => card(c, 'teacher')).join('')}</div>` : '<p class="muted small">Create a class to get a join code for your students.</p>'}
+          <h3>${icon('school')} My classes</h3>
+          ${studentClasses.length ? `<div class="cl-list">${studentClasses.map((c) => card(c, 'student')).join('')}</div>` : '<p class="muted small">You’re not in a class yet.</p>'}
         </section>
       </div>`;
     const msg = this.body.querySelector('.cl-msg');
     this.body.querySelectorAll('input').forEach((i) => i.addEventListener('keydown', (e) => e.stopPropagation()));
-    this.body.querySelector('.cl-join').onsubmit = async (e) => {
+    this.body.querySelector('.cl-join')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const code = this.body.querySelector('#cl-code').value.trim();
       if (!code) return;
@@ -75,8 +95,8 @@ export class ClassesUI {
         a.mascot.say(`You joined <b>${esc(c.name)}</b>! 🎒`, 'cheer', 4000);
         this.go({ view: 'class', cls: { ...c, role: 'student' } });
       } catch (err) { msg.hidden = false; msg.textContent = err.message; }
-    };
-    this.body.querySelector('.cl-new').onsubmit = async (e) => {
+    });
+    this.body.querySelector('.cl-new')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const name = this.body.querySelector('#cl-name').value.trim();
       if (!name) return;
@@ -84,7 +104,7 @@ export class ClassesUI {
         const c = await cloud.createClass({ name, org: a.org?.slug, teacherName: a.displayName() });
         this.go({ view: 'class', cls: { ...c, role: 'teacher' } });
       } catch (err) { msg.hidden = false; msg.textContent = err.message; }
-    };
+    });
     this.body.querySelectorAll('[data-class]').forEach((b) => {
       const c = [...teaching, ...joined].find((x) => x.id === b.dataset.class);
       b.onclick = () => this.go({ view: 'class', cls: { ...c, role: b.dataset.role } });
@@ -95,7 +115,12 @@ export class ClassesUI {
   async renderClass(cls) {
     const teacher = cls.role === 'teacher';
     const [assignments, mine] = await Promise.all([cloud.listAssignments(cls.id), teacher ? [] : cloud.mySubmissions()]);
-    const members = teacher ? await cloud.classMembers(cls.id) : [];
+    const [members, gallery, people] = await Promise.all([
+      teacher ? cloud.classMembers(cls.id) : [],
+      cloud.classGallery(cls.id).catch(() => []),
+      teacher && cls.org ? cloud.orgMembers(cls.org).catch(() => []) : [],
+    ]);
+    const addable = people.filter((p) => p.role === 'student' && !members.some((m) => m.user_id === p.user_id));
     const status = (asg) => {
       if (teacher) return '';
       const s = mine.find((x) => x.assignment_id === asg.id);
@@ -121,7 +146,12 @@ export class ClassesUI {
       ${assignments.length ? `<div class="cl-list">${assignments.map((x) => `
         <button class="cl-card" data-asg="${x.id}"><b>${esc(x.title)}</b><span>${esc(dueText(x.due_at))}</span>${status(x)}</button>`).join('')}</div>`
         : `<p class="muted small">${teacher ? 'Post the first assignment above.' : 'No assignments yet.'}</p>`}
-      ${teacher ? `<h4>Students (${members.length})</h4>${members.length ? `<div class="cl-members">${members.map((m) => `<span>${esc(m.display_name || 'Student')}</span>`).join('')}</div>` : '<p class="muted small">Share the join code with your class.</p>'}
+      <h4>Shared with this class (${gallery.length})</h4>
+      ${gallery.length ? `<div class="cl-gallery">${gallery.map((d) => `<button class="cl-gal" data-gal="${d.id}"><div class="cl-thumb">${d.thumb?.startsWith('data:image/') ? `<img src="${esc(d.thumb)}" alt=""/>` : icon('body')}</div><span>${esc(d.name)}</span></button>`).join('')}</div>`
+        : '<p class="muted small">Designs someone shares with this class show up here. Use <b>Share</b> in the toolbar to share yours.</p>'}
+      ${teacher ? `<h4>Students (${members.length})</h4>
+        ${addable.length ? `<form class="cl-addst"><select id="cl-st"><option value="">Add a student…</option>${addable.map((p) => `<option value="${p.user_id}">${esc(p.display_name || p.username)}</option>`).join('')}</select><button class="btn small primary" type="submit">Add to class</button><button class="btn small" type="button" data-addall>Add all ${addable.length}</button></form>` : ''}
+        ${members.length ? `<div class="cl-members">${members.map((m) => `<span>${esc(m.display_name || 'Student')}<button class="icon-btn" data-kick="${m.user_id}" title="Remove from class">${icon('close')}</button></span>`).join('')}</div>` : '<p class="muted small">Add students above, or share the join code with your class.</p>'}
         <p><button class="btn small danger" data-del>Delete class</button></p>`
         : '<p><button class="btn small" data-leave>Leave class</button></p>'}`;
     this.body.querySelectorAll('input, textarea').forEach((i) => i.addEventListener('keydown', (e) => e.stopPropagation()));
@@ -138,6 +168,34 @@ export class ClassesUI {
       const due = this.body.querySelector('#as-due').value;
       await cloud.createAssignment({ classId: cls.id, title, instructions: this.body.querySelector('#as-ins').value.trim(), dueAt: due ? new Date(due).toISOString() : null });
       this.go({ view: 'class', cls });
+    });
+    this.body.querySelectorAll('[data-gal]').forEach((b) => {
+      b.onclick = async () => {
+        try {
+          const d = await cloud.loadDesignById(b.dataset.gal);
+          this.m.closest('.modal-backdrop')?.remove();
+          this.app.openViewOnly(d.doc, d.name, `Shared with ${cls.name}: “${d.name}”`);
+        } catch (err) { this.app.toast(err.message, 'error'); }
+      };
+    });
+    this.body.querySelector('.cl-addst')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = this.body.querySelector('#cl-st').value;
+      if (!id) return;
+      const p = people.find((x) => x.user_id === id);
+      try { await cloud.assignToClass(cls.id, id, p?.display_name || p?.username); this.go({ view: 'class', cls }); } catch (err) { this.app.toast(err.message, 'error'); }
+    });
+    this.body.querySelector('[data-addall]')?.addEventListener('click', async () => {
+      try {
+        for (const p of addable) await cloud.assignToClass(cls.id, p.user_id, p.display_name || p.username);
+        this.app.toast(`Added ${addable.length} students`);
+        this.go({ view: 'class', cls });
+      } catch (err) { this.app.toast(err.message, 'error'); }
+    });
+    this.body.querySelectorAll('[data-kick]').forEach((b) => {
+      b.onclick = async () => {
+        try { await cloud.removeFromClass(cls.id, b.dataset.kick); this.go({ view: 'class', cls }); } catch (err) { this.app.toast(err.message, 'error'); }
+      };
     });
     this.body.querySelectorAll('[data-asg]').forEach((b) => {
       b.onclick = () => this.go({ view: 'assignment', cls, asg: assignments.find((x) => x.id === b.dataset.asg) });

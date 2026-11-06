@@ -41,6 +41,25 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  # The Supabase migrations on a real PostgreSQL, plus every permission rule
+  # (who can see, create, grade and share what).
+  database:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Migrations and permission tests
+        run: bash tests/db/run.sh
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+
   mac:
     needs: test
     # Apple Silicon runners are often out of capacity; the Intel runner can still build
@@ -158,13 +177,16 @@ jobs:
         with:
           source: ./site
           destination: ./_site
-      - name: Put the web app at /app/ and in every school space /org/<slug>/
+      - name: Put the web app at /app/, /admin/ and every school's /org/<slug>/ and /org/<slug>/student/
         run: |
           sudo cp -r dist _site/app
           for slug in $(node -p "require('./src/orgs.json').map(o => o.slug).join(' ')"); do
-            sudo mkdir -p "_site/org/$slug"
+            sudo mkdir -p "_site/org/$slug/student"
             sudo cp -r dist/. "_site/org/$slug/"
+            sudo cp -r dist/. "_site/org/$slug/student/"
           done
+          # admin panel
+          sudo mkdir -p _site/admin && sudo cp -r dist/. _site/admin/
           # Schools added in the app have no folder of their own: GitHub Pages serves 404.html
           # for unknown addresses, so make it the app (with absolute asset paths) and it
           # reads the school from the address /3DCAD/org/<slug>/.

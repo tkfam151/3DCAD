@@ -141,8 +141,49 @@ export async function getOrg(slug) {
   return rows[0] || null;
 }
 
-export async function registerOrg({ slug, name, short, city, color }) {
-  return run(sb().from('orgs').insert({ slug, name, short, city: city || null, color }).select().single());
+/** Create a school with the creation code from the site admin; you become its owner. */
+export async function createOrg({ slug, name, short, city, color, password, code }) {
+  return run(sb().rpc('create_org', { p_slug: slug, p_name: name, p_short: short, p_city: city || '', p_color: color, p_password: password, p_code: code }));
+}
+
+export async function checkOrgPassword(slug, password) {
+  return run(sb().rpc('check_org_password', { p_slug: slug, p_password: password }));
+}
+
+export async function setOrgPassword(slug, password) {
+  await run(sb().rpc('set_org_password', { p_slug: slug, p_password: password }));
+}
+
+export async function setCreationCode(code) {
+  await run(sb().rpc('set_creation_code', { p_code: code }));
+}
+
+/** { admin: bool, orgs: [{ org, role, username, display_name }] } for the signed-in user. */
+export async function whoami() {
+  if (!(await currentUser())) return { admin: false, orgs: [] };
+  return run(sb().rpc('whoami'));
+}
+
+export async function deleteOrg(slug) {
+  await run(sb().from('orgs').delete().eq('slug', slug));
+}
+
+/**
+ * Account manager (the org-admin Edge Function, which keeps the secret key on Supabase).
+ * action: list | create | update | remove | deleteAccount | setOwner
+ */
+export async function orgAdmin(action, payload = {}) {
+  const { data, error } = await sb().functions.invoke('org-admin', { body: { action, ...payload } });
+  if (error) {
+    let msg = error.message;
+    try { const body = await error.context?.json?.(); if (body?.error) msg = body.error; } catch { /* keep msg */ }
+    if (/failed to send|not found|404|FunctionsFetchError|FunctionsRelayError/i.test(msg)) {
+      msg = 'The account manager isn’t set up yet. The app owner needs to deploy the org-admin function (see the README).';
+    }
+    throw new Error(msg);
+  }
+  if (data?.error) throw new Error(data.error);
+  return data;
 }
 
 export async function updateOrg(slug, patch) {
@@ -219,4 +260,32 @@ export async function submitWork({ assignmentId, name, doc, thumb, studentName }
 
 export async function reviewSubmission(id, { feedback, grade }) {
   return run(sb().from('submissions').update({ feedback: feedback || null, grade: grade || null }).eq('id', id).select('id, reviewed_at').single());
+}
+
+// ---------- assigning students and sharing with a class ----------
+
+export async function assignToClass(classId, userId, displayName) {
+  await run(sb().from('class_members').insert({ class_id: classId, user_id: userId, display_name: displayName || null }));
+}
+
+export async function removeFromClass(classId, userId) {
+  await run(sb().from('class_members').delete().eq('class_id', classId).eq('user_id', userId));
+}
+
+/** People in a school (staff see everyone; RLS limits what others get). */
+export async function orgMembers(org) {
+  return run(sb().from('org_members').select('user_id, role, username, display_name').eq('org', org).order('display_name'));
+}
+
+export async function setSharedClass(designId, classId) {
+  return run(sb().from('designs').update({ shared_class: classId || null }).eq('id', designId).select('id, shared_class').single());
+}
+
+/** Designs that classmates shared with a class. */
+export async function classGallery(classId) {
+  return run(sb().from('designs').select('id, name, thumb, updated_at, user_id').eq('shared_class', classId).order('updated_at', { ascending: false }).limit(60));
+}
+
+export async function loadDesignById(id) {
+  return run(sb().from('designs').select('id, name, doc, user_id').eq('id', id).single());
 }

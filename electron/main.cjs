@@ -217,7 +217,7 @@ function buildMenu() {
     {
       label: 'Class',
       submenu: [
-        { label: 'Classes & Assignments…', click: () => send('classes') },
+        { label: 'Organisation (My School)…', click: () => send('mySchool') },
         { label: 'Lessons…', click: () => send('lessons') },
         { label: 'Print Check…', click: () => send('printCheck') },
         { label: 'Design Journal…', click: () => send('journal') },
